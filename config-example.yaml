@@ -1,0 +1,27 @@
+# immich-gpx Configuration File
+# 
+# Override defaults by setting values below.
+# Command-line arguments take precedence over this file.
+# 
+
+# Immich server configuration
+immich:
+  url: http://localhost:2283
+  api_key: null
+  verify_ssl: true
+  timeout: 10
+
+# GPS matching configuration
+matching:
+  threshold: 60  # Seconds (default: 60)
+
+# Performance settings
+performance:
+  cache_ttl: 3600  # Response cache duration in seconds
+  rate_limit_requests: 100  # Max requests per window
+  rate_limit_window: 60  # Time window in seconds
+
+# Logging configuration
+logging:
+  verbose: false
+  log_file: null  # Optional: set to file path for file logging

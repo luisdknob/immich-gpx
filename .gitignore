@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+.Python
+dist/
+build/
+
+# Virtual environments
+.venv/
+
+# IDE
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Project specific
+gpx/
+htmlcov/
+.coverage
+logs/
+temp/
+tmp/
+*.log
+config.yaml

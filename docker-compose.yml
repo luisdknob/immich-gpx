@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  immich-gpx:
+    build: .
+    image: immich-gpx:latest
+    
+    volumes:
+      - ./gpx:/data:ro
+      - ./config.yaml:/app/config.yaml:ro
+      # - ./logs:/app/logs  # Uncomment to save logs
+    
+    command: --gpx-file /data/track.gpx --verbose
