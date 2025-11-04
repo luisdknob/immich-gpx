@@ -88,8 +88,6 @@ def test_print_results_with_null_gps_data():
 
 def test_print_match_without_distance():
     """Test that 'Distance: None meters' is not displayed when distance is None."""
-    logger = logging.getLogger('test')
-    
     gps_points = []
     
     photos = [
@@ -113,20 +111,20 @@ def test_print_match_without_distance():
         }
     ]
     
-    # Capture log output
-    with patch('immich_gpx.utils.logger') as mock_logger:
-        result = print_results(gps_points, photos, matches, immich_url="", logger=mock_logger)
-        
-        # Verify that "Distance: None" was NOT logged
-        logged_info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
-        distance_logs = [log for log in logged_info_calls if 'Distance: None' in log]
-        assert len(distance_logs) == 0, f"Found 'Distance: None' in logs: {distance_logs}"
+    # Create a mock logger to capture calls
+    mock_logger = MagicMock(spec=logging.Logger)
+    
+    # Call print_results with mock logger
+    print_results(gps_points, photos, matches, immich_url="", logger=mock_logger)
+    
+    # Verify that "Distance: None" was NOT logged
+    logged_info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
+    distance_logs = [log for log in logged_info_calls if 'Distance: None' in log]
+    assert len(distance_logs) == 0, f"Found 'Distance: None' in logs: {distance_logs}"
 
 
 def test_print_match_with_valid_distance():
     """Test that valid distance values are displayed correctly."""
-    logger = logging.getLogger('test')
-    
     gps_points = [
         {
             'latitude': 41.0,
@@ -157,20 +155,20 @@ def test_print_match_with_valid_distance():
         }
     ]
     
-    # Capture log output
-    with patch('immich_gpx.utils.logger') as mock_logger:
-        result = print_results(gps_points, photos, matches, immich_url="", logger=mock_logger)
-        
-        # Verify that valid distance WAS logged
-        logged_info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
-        distance_logs = [log for log in logged_info_calls if '45.3' in log and 'Distance' in log]
-        assert len(distance_logs) == 1, f"Expected one distance log with 45.3, got: {distance_logs}"
+    # Create a mock logger to capture calls
+    mock_logger = MagicMock(spec=logging.Logger)
+    
+    # Call print_results with mock logger
+    print_results(gps_points, photos, matches, immich_url="", logger=mock_logger)
+    
+    # Verify that valid distance WAS logged
+    logged_info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
+    distance_logs = [log for log in logged_info_calls if '45.3' in log and 'Distance' in log]
+    assert len(distance_logs) == 1, f"Expected one distance log with 45.3, got: {distance_logs}"
 
 
 def test_print_match_with_zero_distance():
     """Test that distance=0 is still displayed (not treated as None)."""
-    logger = logging.getLogger('test')
-    
     gps_points = [
         {
             'latitude': 41.0,
@@ -201,14 +199,16 @@ def test_print_match_with_zero_distance():
         }
     ]
     
-    # Capture log output
-    with patch('immich_gpx.utils.logger') as mock_logger:
-        result = print_results(gps_points, photos, matches, immich_url="", logger=mock_logger)
-        
-        # Verify that distance=0 IS logged (since 0 is not None)
-        logged_info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
-        distance_logs = [log for log in logged_info_calls if 'Distance: 0' in log]
-        assert len(distance_logs) == 1, f"Expected distance=0 to be logged, got: {distance_logs}"
+    # Create a mock logger to capture calls
+    mock_logger = MagicMock(spec=logging.Logger)
+    
+    # Call print_results with mock logger
+    print_results(gps_points, photos, matches, immich_url="", logger=mock_logger)
+    
+    # Verify that distance=0 IS logged (since 0 is not None)
+    logged_info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
+    distance_logs = [log for log in logged_info_calls if 'Distance: 0' in log]
+    assert len(distance_logs) == 1, f"Expected distance=0 to be logged, got: {distance_logs}"
 
 
 
