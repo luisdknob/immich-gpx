@@ -1,13 +1,7 @@
 """
-Command-line interface for immich-gpx-linker.
+Command-line interface for immich-gpx.
 
-Provides CLI argument parsing and orchestrates the GPS photo linking workflow:
-1. Parse GPX file to extract GPS points with timestamps
-2. Query Immich API for photos in matching time range
-3. Match photos to GPS points using distance and time thresholds
-4. Update photo metadata with GPS coordinates
-
-Main entry point: main()
+Parses CLI arguments and orchestrates the GPS photo linking workflow.
 """
 
 import argparse

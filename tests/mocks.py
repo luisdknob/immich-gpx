@@ -1,17 +1,7 @@
 """
-Standardized mock patterns for consistent test mocking.
+Standardized mock patterns for HTTP requests and API responses.
 
-Provides reusable mock builders for:
-- HTTP requests/responses
-- API sessions
-- Immich API responses
-
-Usage:
-    from tests.mocks import MockRequestsSession, mock_api_response
-    
-    @patch('requests.Session')
-    def test_something(mock_session_class):
-        mock_session_class.return_value = MockRequestsSession.with_photo_update('photo1', 41.0, -71.0)
+MockRequestsSession provides reusable patterns for common API mocking scenarios.
 """
 
 from unittest.mock import Mock, MagicMock

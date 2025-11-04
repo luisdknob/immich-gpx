@@ -57,9 +57,9 @@ def convert_decimal_to_xmp_format(latitude: float, longitude: float) -> Tuple[st
 class XMPWriter:
     """Generate and write XMP sidecar files with GPS data."""
     
-    # Immich XMP template - exact format from Immich-generated files
-    XMP_TEMPLATE = """<?xpacket begin='﻿' id='W5M0MpCehiHzreSzNTczkc9d'?>
-<x:xmpmeta xmlns:x='adobe:ns:meta/' x:xmptk='Image::ExifTool 13.00'>
+    # Immich XMP template
+    XMP_TEMPLATE = """<?xpacket begin='﻿' id=''?>
+<x:xmpmeta xmlns:x='adobe:ns:meta/' x:xmptk='immich-gpx v.1.1.0'>
 <rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'>
 
  <rdf:Description rdf:about=''

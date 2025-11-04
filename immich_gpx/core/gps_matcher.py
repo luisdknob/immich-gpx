@@ -40,39 +40,24 @@ class GPSMatcher:
         lon2: float,
     ) -> float:
         """
-        Calculate great-circle distance between two GPS coordinates.
-        
-        Uses the Haversine formula to compute the shortest distance
-        between two points on a sphere given their latitudes and longitudes.
-        See: https://en.wikipedia.org/wiki/Haversine_formula
+        Calculate great-circle distance between two GPS coordinates using Haversine formula.
         
         Args:
-            lat1: Latitude of first point in degrees (-90 to 90)
-            lon1: Longitude of first point in degrees (-180 to 180)
-            lat2: Latitude of second point in degrees (-90 to 90)
-            lon2: Longitude of second point in degrees (-180 to 180)
+            lat1: Latitude of first point in degrees
+            lon1: Longitude of first point in degrees
+            lat2: Latitude of second point in degrees
+            lon2: Longitude of second point in degrees
         
         Returns:
-            Distance in meters between the two points
-        
-        Examples:
-            >>> distance = GPSMatcher.haversine_distance(
-            ...     40.7128, -74.0060,  # New York
-            ...     51.5074, -0.1278    # London
-            ... )
-            >>> print(f"{distance/1000:.0f} km")
-            5571 km
+            Distance in meters
         """
         from math import radians, cos, sin, asin, sqrt
 
-        # Convert degrees to radians for trigonometric calculations
         lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
 
-        # Calculate differences in coordinates
         lon_diff = lon2 - lon1
         lat_diff = lat2 - lat1
         
-        # Haversine formula: compute angular distance
         angular_distance = (
             sin(lat_diff / 2) ** 2 +
             cos(lat1) * cos(lat2) * sin(lon_diff / 2) ** 2

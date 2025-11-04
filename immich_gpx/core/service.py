@@ -1,23 +1,10 @@
 """
-High-level service API for immich-gpx-linker.
+High-level service API for immich-gpx.
 
-Provides a simple, clean interface for processing GPX files and matching photos.
-This module decouples core logic from CLI and can be used as a library or in
-microservices applications. Main classes:
-    - ProcessResult: Data class containing results of a GPS matching operation
-    - ImmichGPXService: High-level service for orchestrating the matching workflow
-
-The service handles:
-    - GPX file parsing and GPS point extraction
-    - Querying Immich API for photos in matching time range
-    - Matching photos to GPS points using distance/time thresholds
-    - Categorizing matches by GPS status
-    - Updating photo GPS coordinates
-
-Usage examples:
-    >>> service = ImmichGPXService('http://localhost:2283', 'api-key')
-    >>> result = service.process_gpx_file('track.gpx')
-    >>> print(f"Matched {result.matched_count} photos")
+Processes GPX files and matches photos to GPS coordinates.
+Main classes:
+- ProcessResult: Results dataclass for GPS matching operations
+- ImmichGPXService: Orchestrates the matching workflow
 """
 
 import logging

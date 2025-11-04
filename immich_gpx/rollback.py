@@ -1,12 +1,7 @@
 """
 Rollback management for GPS coordinate updates.
 
-Provides ability to undo GPS coordinate changes by storing backup data
-before updates and restoring original coordinates on demand.
-
-Classes:
-    RollbackManager: Manages rollback sessions and operations
-    RollbackSession: Single rollback session data
+Stores backup data before updates and restores original coordinates on demand.
 """
 
 import json

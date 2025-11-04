@@ -16,33 +16,18 @@ from .xmp_writer import XMPWriter
 
 def categorize_matches(matches: List[Dict]) -> Dict[str, any]:
     """
-    Categorize matched photos by GPS status.
-    
-    Separates matched photo-GPS pairs into two categories based on whether
-    the photo already contains GPS coordinate data.
+    Categorize matches by GPS status (with/without existing coordinates).
     
     Args:
-        matches: List of matched photo-GPS pair dictionaries, each containing
-                'photo' and 'gps' keys with coordinate and metadata information
+        matches: List of photo-GPS match dictionaries
         
     Returns:
-        Dictionary containing:
-            - 'all': All matches provided
-            - 'with_gps': Matches where photo has existing GPS coordinates
-            - 'without_gps': Matches where photo lacks GPS coordinates  
-            - 'counts': Dictionary with total, with_gps, without_gps counts
-    
-    Examples:
-        >>> matches = [{'photo': {'id': 'p1', 'latitude': 41.0}, 'gps': {...}}]
-        >>> result = categorize_matches(matches)
-        >>> result['counts']['with_gps']
-        1
+        Dict with 'all', 'with_gps', 'without_gps', and 'counts' keys
     """
     with_gps = []
     without_gps = []
     
     for match in matches:
-        # Basic structure validation - must have photo key
         if not isinstance(match, dict) or 'photo' not in match:
             logger = logging.getLogger(__name__)
             logger.debug(f"[VALIDATION] Skipping invalid match structure")
@@ -52,7 +37,6 @@ def categorize_matches(matches: List[Dict]) -> Dict[str, any]:
         latitude = photo.get('latitude')
         longitude = photo.get('longitude')
         
-        # Photo has GPS if both latitude and longitude are not None
         if latitude is not None and longitude is not None:
             with_gps.append(match)
         else:
@@ -78,25 +62,14 @@ def print_results(
     logger: Optional[logging.Logger] = None,
 ) -> None:
     """
-    Pretty print GPS matching results to console and logger.
-    
-    Displays comprehensive matching summary including GPS point information,
-    photos found, matches discovered, and provides a clickable link to view
-    matches in the Immich web interface.
+    Print GPS matching results to console.
     
     Args:
-        gps_points: List of GPS points extracted from GPX file
-        photos: List of photos retrieved from Immich server
-        matches: List of photo-GPS matches discovered
-        immich_url: Immich server URL for constructing view links (optional)
-        logger: Logger instance for output (defaults to 'immich-gpx')
-    
-    Returns:
-        None
-    
-    Example:
-        >>> print_results(gps_pts, immich_photos, matched_pairs, 
-        ...               immich_url='http://localhost:2283')
+        gps_points: GPS points from GPX file
+        photos: Photos from Immich server
+        matches: Photo-GPS matches
+        immich_url: Immich server URL (optional)
+        logger: Logger instance (optional)
     """
     if logger is None:
         logger = logging.getLogger('immich-gpx')

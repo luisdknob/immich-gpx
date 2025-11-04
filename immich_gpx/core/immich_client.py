@@ -1,17 +1,8 @@
 """
-Immich API client for photo queries and coordinate updates.
+Immich API client for photo queries and GPS coordinate updates.
 
-Provides ImmichAPI class for interacting with Immich server REST API:
-- Connection testing and version checking
-- Querying photos by date/time range with pagination
-- Extracting EXIF GPS data from photos
-- Updating photo GPS coordinates
-
-Classes:
-    ImmichAPI: Main API client class
-    
-Authentication: Uses API key header ('x-api-key') for all requests
-Connection: Configurable URL, SSL verification, and timeout settings
+Handles connection testing, photo queries by date range, and GPS coordinate updates.
+Uses API key authentication via 'x-api-key' header.
 """
 
 import json

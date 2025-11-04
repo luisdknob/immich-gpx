@@ -1,18 +1,7 @@
 """
-Logging configuration and setup for immich-gpx-linker application.
+Logging configuration for immich-gpx.
 
-Provides centralized logger initialization with:
-- Dual output: console (for immediate feedback) and rotating file logs
-- Configurable verbosity levels (INFO for normal, DEBUG for verbose)
-- Automatic log rotation to prevent unbounded disk usage
-- Consistent timestamp and message formatting
-
-Functions:
-    setup_logging(): Initialize and return configured logger instance
-    
-Usage:
-    >>> logger = setup_logging(verbose=True, log_dir='/var/log/immich-gpx')
-    >>> logger.info("Application starting...")
+Configures console and rotating file logging with appropriate verbosity levels.
 """
 
 import logging
@@ -23,10 +12,10 @@ from typing import Optional
 
 
 # Logging configuration constants
-MAX_LOG_FILE_SIZE = 10 * 1024 * 1024  # 10 MB per log file
-BACKUP_LOG_COUNT = 5                  # Keep 5 rotated log files
-DEFAULT_LOG_DIR = 'logs'              # Default logs directory name
-LOGGER_NAME = 'immich-gpx'            # Standard logger name
+MAX_LOG_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+BACKUP_LOG_COUNT = 5
+DEFAULT_LOG_DIR = 'logs'
+LOGGER_NAME = 'immich-gpx'
 
 
 def setup_logging(
@@ -34,48 +23,15 @@ def setup_logging(
     log_dir: Optional[str] = None,
 ) -> logging.Logger:
     """
-    Configure and return application logger with console and file output.
-    
-    Sets up comprehensive logging with:
-    - Console output for immediate user feedback
-    - File output with automatic rotation when size exceeds threshold
-    - Different verbosity levels for debugging vs. normal operation
-    - Consistent timestamp and formatting across all output
-    
-    Console output:
-    - Format: [LEVEL] message
-    - Level: DEBUG if verbose, otherwise INFO
-    - Output: stderr (standard)
-    
-    File output:
-    - Format: timestamp - logger - level - message
-    - Always DEBUG level (captures full details for troubleshooting)
-    - Location: logs/ directory (or custom log_dir)
-    - Filename: immich-gpx_YYYYMMDD_HHMMSS.log (new file for each run)
+    Configure logger with console and file output.
     
     Args:
-        verbose: Enable DEBUG level logging for detailed output (default: False)
-        log_dir: Directory for log files, created if missing (default: './logs')
-        
+        verbose: Enable DEBUG level logging
+        log_dir: Directory for log files (default: './logs')
+    
     Returns:
-        Configured logger instance (logging.Logger) named 'immich-gpx'
-        
-    Raises:
-        OSError: If log directory cannot be created or is not writable
-        
-    Example:
-        >>> # Normal operation - INFO level
-        >>> logger = setup_logging()
-        >>> logger.info("Operation started")
-        
-        >>> # Verbose debugging - DEBUG level
-        >>> logger = setup_logging(verbose=True)
-        >>> logger.debug("Detailed state information")
-        
-        >>> # Custom log directory
-        >>> logger = setup_logging(log_dir='/var/log/myapp')
+        Configured logger instance
     """
-    # Get or create logger instance
     logger = logging.getLogger(LOGGER_NAME)
     logger.setLevel(logging.DEBUG if verbose else logging.INFO)
     

@@ -1,15 +1,8 @@
 """
-Configuration management for immich-gpx-linker application.
+Configuration management for immich-gpx.
 
-Centralizes configuration loading, validation, and precedence handling:
-- Command-line arguments (highest priority)
-- Environment variables
-- Built-in default values (lowest priority)
-
-Classes:
-    Config: Encapsulates all application configuration with comprehensive validation
-    
-Main entry point: Config.from_args_and_env()
+Handles configuration from command-line args, environment variables, and defaults.
+Config dataclass validates all settings on initialization.
 """
 
 import os
@@ -42,33 +35,10 @@ MIN_API_KEY_LENGTH = 10              # Minimum expected API key length
 
 
 class Config:
-    """
-    Centralized application configuration with comprehensive validation.
+    """Application configuration with validation.
     
-    Loads configuration from multiple sources with defined precedence:
-    1. Command-line arguments (highest priority)
-    2. Environment variables (IMMICH_URL, IMMICH_API_KEY, etc.)
-    3. Built-in default values (lowest priority)
-    
-    Performs extensive validation on all parameters:
-    - GPX file existence and accessibility
-    - Immich URL format and protocol
-    - API key length and format
-    - Threshold and timeout values must be positive
-    
-    Attributes:
-        immich_url (str): Immich server URL
-        immich_api_key (str): API key for authentication
-        gpx_file (str): Path to GPX file
-        threshold (float): Time threshold in seconds for matching
-        timeout (int): API request timeout in seconds
-        verify_ssl (bool): Whether to verify SSL certificates
-        verbose (bool): Enable verbose logging
-        
-    Example:
-        >>> # Create from command-line arguments
-        >>> config = Config.from_args_and_env(args)
-        >>> print(f"GPX: {config.gpx_file}, URL: {config.immich_url}")
+    Loads settings from CLI args, environment variables, and defaults.
+    Validates GPX file, Immich URL, API key, and numeric parameters.
     """
     
     # Default configuration values
@@ -192,47 +162,39 @@ class Config:
             >>> config.immich_url = 'invalid'
             >>> config.validate()  # Raises ConfigurationError
         """
-        # Validate GPX file path is provided
         if not self.gpx_file:
             raise ConfigurationError("GPX file path is required")
         
-        # Validate GPX file using comprehensive validation module
         try:
             validate_gpx_file(self.gpx_file)
         except ValueError as e:
             raise GPXValidationError(str(e)) from e
         
-        # Validate Immich server URL is provided
         if not self.immich_url:
             raise ConfigurationError(
                 "IMMICH_URL is required. Set via --immich-url or IMMICH_URL environment variable."
             )
         
-        # Validate Immich URL format using validation module
         try:
             validate_immich_url(self.immich_url)
         except ValueError as e:
             raise ConfigurationError(str(e)) from e
         
-        # Validate API key is provided
         if not self.immich_api_key:
             raise ConfigurationError(
                 "IMMICH_API_KEY is required. Set via --immich-api-key or IMMICH_API_KEY environment variable."
             )
         
-        # Validate API key format using validation module
         try:
             validate_api_key(self.immich_api_key)
         except ValueError as e:
             raise ConfigurationError(str(e)) from e
         
-        # Validate threshold using validation module
         try:
             validate_threshold(self.threshold)
         except ValueError as e:
             raise ConfigurationError(str(e)) from e
         
-        # Validate timeout using validation module
         try:
             validate_timeout(self.timeout)
         except ValueError as e:

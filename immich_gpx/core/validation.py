@@ -1,7 +1,7 @@
 """
-Input validation module for immich-gpx-linker.
+Input validation for immich-gpx.
 
-Provides comprehensive validation functions for all user-provided data:
+Validation functions for user-provided data:
 - GPS coordinates (latitude, longitude)
 - Date/time values (ISO 8601 format)
 - File paths and sizes (GPX files)
@@ -9,26 +9,7 @@ Provides comprehensive validation functions for all user-provided data:
 - Configuration parameters (threshold, timeout, API key)
 - API responses (photos, matches)
 
-Each validation function raises ValueError with clear error messages
-when validation fails. Functions designed to fail fast and report issues immediately.
-
-Functions:
-    validate_latitude(): Validate latitude coordinate (-90 to +90)
-    validate_longitude(): Validate longitude coordinate (-180 to +180)
-    validate_gps_point(): Validate GPS coordinate pair
-    validate_datetime(): Validate ISO 8601 datetime
-    validate_gpx_file(): Validate GPX file format and content
-    validate_immich_url(): Validate Immich server URL
-    validate_threshold(): Validate time threshold parameter
-    validate_timeout(): Validate request timeout parameter
-    validate_api_key(): Validate Immich API key
-    validate_photo_response(): Validate photo object from API
-    validate_match_object(): Validate GPS match structure
-
-Usage:
-    >>> validate_latitude(40.7128)  # Valid NYC latitude
-    >>> validate_longitude(-74.0060)  # Valid NYC longitude
-    >>> validate_gps_point(40.7128, -74.0060)  # Validate pair
+All functions raise ValueError with clear error messages on validation failure.
 """
 
 import socket

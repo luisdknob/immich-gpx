@@ -1,22 +1,10 @@
 """
-Test data builders for consistent test data creation.
+Test data builders for creating consistent test data.
 
-Provides builder classes and convenience functions for creating test data:
-- Photos
-- GPS points
-- Matches
-- API responses
-
-Usage:
-    from tests.builders import photo, gps_point, match
-    
-    # Quick builders
-    p = photo('photo1', lat=41.0, lon=-71.0)
-    g = gps_point(41.0, -71.0)
-    m = match(p, g)
-    
-    # Builder pattern for complex cases
-    p = PhotoBuilder().with_id('photo1').with_gps(41.0, -71.0).with_name('test.jpg').build()
+Builder classes and convenience functions:
+- photo(): Create photo in Immich API format
+- gps_point(): Create GPS point with coordinates
+- match(): Create photo-GPS match structure
 """
 
 from datetime import datetime

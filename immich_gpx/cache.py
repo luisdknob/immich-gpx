@@ -1,20 +1,7 @@
 """
-Response caching layer for API calls.
+In-memory response caching with TTL for API calls.
 
-Provides in-memory caching with TTL (Time To Live) to reduce API calls
-and improve performance. Useful for caching frequently requested data
-like photo lists or EXIF metadata.
-
-Classes:
-    CacheEntry: Individual cache entry with expiration tracking
-    APIResponseCache: In-memory response cache with TTL
-
-Usage:
-    >>> cache = APIResponseCache(ttl_seconds=3600)
-    >>> cache.set("photos:2024-01-01", photos_list)
-    >>> cached = cache.get("photos:2024-01-01")
-    >>> if cached is None:
-    ...     print("Cache miss - fetching from API")
+Reduces API calls by caching frequently requested data like photo lists.
 """
 
 from datetime import datetime, timedelta

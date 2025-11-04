@@ -1,14 +1,7 @@
 """
-GPX file parsing and GPS point extraction module.
+GPX file parsing and GPS point extraction.
 
-Provides GPXParser class for parsing GPX (GPS Exchange Format) files and extracting
-GPS track points with timestamps, coordinates, and elevation data. Handles error
-cases (missing files, invalid formats) and provides time range queries.
-
-Classes:
-    GPXParser: Main parser class for reading and extracting GPS data from GPX files
-    
-Main entry point: GPXParser.parse()
+Parses GPX files to extract track points with timestamps, coordinates, and elevation.
 """
 
 import logging
