@@ -147,6 +147,11 @@ Examples:
              'prompt (ask user, default)',
     )
     parser.add_argument(
+        '--enable-xmp',
+        action='store_true',
+        help='Create XMP sidecar files when API updates fail (for external libraries)',
+    )
+    parser.add_argument(
         '--rollback',
         metavar='SESSION_ID',
         default=None,
@@ -410,7 +415,8 @@ Examples:
                 logger,
                 mode=update_mode,
                 api_key=immich_api_key,
-                rollback_session=rollback_session
+                rollback_session=rollback_session,
+                enable_xmp=args.enable_xmp
             )
             
             # Save rollback session and cleanup old ones
