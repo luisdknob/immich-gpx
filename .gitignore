@@ -25,6 +25,8 @@ htmlcov/
 logs/
 temp/
 dev/
+rollback/
+xmp/
 tmp/
 *.log
-config.yaml
+config.yamlrollback/
