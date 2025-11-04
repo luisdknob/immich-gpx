@@ -1,40 +1,39 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+All notable changes documented here. Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [1.1.0] - 2025-11-04
 
 ### Added
 
-- **Rollback system**: Full undo capability for GPS updates via `--rollback` flag
-  - Session-based rollback with automatic cleanup (keeps 10 most recent)
-  - `--rollback latest` or `--rollback SESSION_ID` to restore changes
+- **Rollback system**: Undo GPS updates with `--rollback latest` or `--rollback SESSION_ID`
+  - Session-based with automatic cleanup (keeps 10 most recent)
   - Stores original coordinates before updates
 - **XMP sidecar support**: Generate XMP files for external/read-only libraries via `--enable-xmp`
-  - Auto-detects when Immich API fails to persist coordinates
-  - Creates XMP files that Immich can import on metadata rescan
-  - Interactive pipeline with verification retry
+  - Auto-detects when API fails to persist coordinates
+  - Creates XMP files for Immich metadata rescan
+  - Interactive verification pipeline with retry option
 - **Update verification**: Re-fetches photos after update to confirm persistence
-  - Catches silent failures from read-only or external libraries
-  - Clear error reporting distinguishing API vs persistence failures
-- HTTP redirect handling: Auto-updates base URL when HTTP redirects to HTTPS
-- Match sorting: Photos now sorted by timestamp (oldest first) for consistent processing
+  - Detects silent failures from read-only or external libraries
+  - Clear error reporting for API vs persistence failures
+- HTTP redirect handling: Auto-updates base URL on HTTP→HTTPS redirects
+- Match sorting: Photos sorted by timestamp (oldest first)
 
 ### Changed
 
-- Enhanced output formatting with detailed status indicators:
-  - ✓ X verified (update successful and confirmed)
-  - → X skipped (existing GPS preserved)
-  - ✗ X failed (API error)
-  - ⚠ X not persisted (read-only library detected)
-- Distance display no longer shows 'None' when unavailable
+- Enhanced output with status indicators:
+  - `✓ X verified` - Update successful and confirmed
+  - `→ X skipped` - Existing GPS preserved
+  - `✗ X failed` - API error
+  - `⚠ X not persisted` - Read-only library detected
+- Distance no longer displays 'None' when unavailable
+- Improved docstrings and removed verbose comments
 
 ### Fixed
 
-- HTTP/HTTPS protocol mismatch when server redirects
-- Integration tests properly mock session.request()
+- HTTP/HTTPS protocol mismatch on redirects
+- Integration test mocking for session.request()
+- Python 3.13+ compatibility (datetime.UTC → zoneinfo.UTC)
 
 ## [1.0.0] - 2025-11-03
 
