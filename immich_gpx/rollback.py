@@ -12,7 +12,7 @@ Classes:
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Callable
 from uuid import uuid4
@@ -46,7 +46,7 @@ class RollbackSession:
         self.session_id = session_id
         self.gpx_file = gpx_file
         self.update_mode = update_mode
-        self.timestamp = datetime.utcnow().isoformat() + "Z"
+        self.timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         self.photos = []
         self.rollback_dir = rollback_dir or Path("./rollback")
 
@@ -143,7 +143,7 @@ class RollbackManager:
         Returns:
             New RollbackSession instance
         """
-        session_id = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + str(uuid4())[:8]
+        session_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S") + "_" + str(uuid4())[:8]
         return RollbackSession(
             session_id=session_id,
             gpx_file=gpx_file,
