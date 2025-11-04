@@ -223,7 +223,6 @@ class GPSMatcher:
                 logger.debug(f"  Matched: Time diff {min_time_diff:.0f}s, Distance {distance:.0f}m" if distance else f"  Matched: Time diff {min_time_diff:.0f}s")
 
         # Sort matches by photo timestamp (oldest first)
-        # This provides a chronological view of the matched photos
         matches.sort(key=lambda m: m['photo']['time'])
 
         return matches

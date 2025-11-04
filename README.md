@@ -14,6 +14,14 @@ Link GPS coordinates from GPX tracks to photos in Immich based on timestamp prox
 - Performance metrics and logging
 - 89%+ test coverage with 280 passing tests
 
+## Prerequisites
+
+### Immich API Key
+
+Create an API key in Immich with `asset.read` and `asset.update` permissions. Go to **Settings** → **Account Settings** → **API Keys** → **New API Key**, enable both permissions, and copy the key.
+
+Store the key securely in `config.yaml` or pass via `--immich-api-key` flag. See the Configuration section below.
+
 ## Quick Start
 
 ### Install
@@ -104,11 +112,13 @@ docker run --rm \
 
 ## Troubleshooting
 
-**Connection errors**: Verify URL, server is running, network connectivity. Use `--no-verify-ssl` for self-signed certificates.
+**Permission errors (403/401)**: Verify your API key has `asset.read` and `asset.update` permissions enabled in Immich settings.
 
-**No photos found**: Check photos exist in GPX time range. Try `--verbose` to debug.
+**Connection errors**: Verify URL and network connectivity. Use `--no-verify-ssl` for self-signed certificates.
 
-**No matches found**: Increase `--threshold` value. Ensure photos have valid timestamps.
+**No photos found**: Check photos exist in GPX time range. Use `--verbose` to debug.
+
+**No matches found**: Try increasing `--threshold` value (default: 60 seconds).
 
 ## Development
 
