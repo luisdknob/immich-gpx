@@ -6,25 +6,10 @@ GPS coordinate update rollback data.
 """
 
 import json
-import logging
 import pytest
 from pathlib import Path
 from datetime import datetime
 from immich_gpx.rollback import RollbackManager, RollbackSession
-
-
-@pytest.fixture
-def temp_rollback_dir(tmp_path):
-    """Create a temporary rollback directory."""
-    rollback_dir = tmp_path / "rollback"
-    return rollback_dir
-
-
-@pytest.fixture
-def rollback_manager(temp_rollback_dir):
-    """Create a RollbackManager instance with temp directory."""
-    logger = logging.getLogger("test")
-    return RollbackManager(rollback_dir=temp_rollback_dir, logger=logger)
 
 
 def test_create_rollback_session(rollback_manager):
@@ -337,7 +322,7 @@ def test_multiple_sessions_isolation(rollback_manager):
     assert retrieved_s2["gpx_file"] == "track2.gpx"
 
 
-def test_rollback_after_app_restart(rollback_manager, temp_rollback_dir):
+def test_rollback_after_app_restart(rollback_manager, temp_rollback_dir, logger):
     """Test that rollback data persists after app restart (new manager instance)."""
     # Create and save session
     session = rollback_manager.create_session(gpx_file="persistent.gpx", update_mode="all")
@@ -353,7 +338,7 @@ def test_rollback_after_app_restart(rollback_manager, temp_rollback_dir):
     session.save()
 
     # Simulate app restart - create new manager instance
-    new_manager = RollbackManager(rollback_dir=temp_rollback_dir, logger=logging.getLogger("test"))
+    new_manager = RollbackManager(rollback_dir=temp_rollback_dir, logger=logger)
 
     # Verify session is still accessible
     retrieved = new_manager.get_session(session_id)

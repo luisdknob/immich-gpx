@@ -4,24 +4,9 @@ Tests for XMP sidecar file generation.
 Tests GPS coordinate conversion and XMP file generation.
 """
 
-import logging
 import pytest
 from pathlib import Path
 from immich_gpx.xmp_writer import XMPWriter, convert_decimal_to_xmp_format
-
-
-@pytest.fixture
-def temp_xmp_dir(tmp_path):
-    """Create a temporary XMP output directory."""
-    xmp_dir = tmp_path / "xmp"
-    return xmp_dir
-
-
-@pytest.fixture
-def xmp_writer(temp_xmp_dir):
-    """Create an XMPWriter instance with temp directory."""
-    logger = logging.getLogger("test")
-    return XMPWriter(output_directory=temp_xmp_dir, logger=logger)
 
 
 class TestGPSConversion:

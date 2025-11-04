@@ -1,4 +1,5 @@
 """Pytest configuration and fixtures for immich_gpx_linker tests."""
+import logging
 import pytest
 from pathlib import Path
 from datetime import datetime, timezone
@@ -136,3 +137,71 @@ def gps_points():
             'time': datetime(2022, 2, 16, 12, 8, 29, tzinfo=timezone.utc)
         }
     ]
+
+
+def create_mock_response(json_data):
+    """
+    Create a proper mock response object that handles urlparse and other operations.
+    
+    This factory function creates a Mock that properly supports:
+    - json() method
+    - raise_for_status() method
+    - response.history attribute
+    - Proper string representation for URL parsing
+    """
+    from unittest.mock import Mock, PropertyMock
+    
+    response = Mock()
+    response.json = Mock(return_value=json_data)
+    response.raise_for_status = Mock()
+    response.history = []
+    response.status_code = 200
+    response.text = str(json_data)
+    
+    # Ensure the mock can be used in string operations
+    response.__str__ = Mock(return_value="<Mock Response>")
+    response.__repr__ = Mock(return_value="<Mock Response>")
+    
+    return response
+
+
+@pytest.fixture
+def create_api_mock_response():
+    """Fixture providing the mock response factory."""
+    return create_mock_response
+
+
+# Centralized fixtures from various test files
+
+@pytest.fixture
+def logger():
+    """Test logger instance."""
+    return logging.getLogger("test")
+
+
+@pytest.fixture
+def temp_rollback_dir(tmp_path):
+    """Temporary rollback directory for rollback tests."""
+    rollback_dir = tmp_path / "rollback"
+    return rollback_dir
+
+
+@pytest.fixture
+def rollback_manager(temp_rollback_dir, logger):
+    """RollbackManager instance with temp directory."""
+    from immich_gpx.rollback import RollbackManager
+    return RollbackManager(rollback_dir=temp_rollback_dir, logger=logger)
+
+
+@pytest.fixture
+def temp_xmp_dir(tmp_path):
+    """Temporary XMP output directory for XMP tests."""
+    xmp_dir = tmp_path / "xmp"
+    return xmp_dir
+
+
+@pytest.fixture
+def xmp_writer(temp_xmp_dir, logger):
+    """XMPWriter instance with temp directory."""
+    from immich_gpx.xmp_writer import XMPWriter
+    return XMPWriter(output_directory=temp_xmp_dir, logger=logger)
