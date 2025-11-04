@@ -405,7 +405,7 @@ def update_photo_positions(
             updated_count += 1
             
         except requests.exceptions.RequestException as e:
-            # Store failed photo info for later XMP attempt
+            # Store failed photo info for potential XMP handling
             api_failed_photos.append({
                 'photo': photo,
                 'gps': gps,
@@ -427,76 +427,78 @@ def update_photo_positions(
     else:
         logger.info(f"Complete! ✓ {updated_count} updated | → {skipped_count} skipped | ✗ {failed_count} failed")
     
-    # If there are API failures and XMP is not already enabled, ask user
-    if api_failed_photos and not enable_xmp:
+    # Handle API failures
+    if api_failed_photos:
         logger.info("-" * 80)
-        logger.warning(f"⚠ {len(api_failed_photos)} photo(s) failed to update via API (possible external library)")
-        logger.info("These photos might be from external libraries that require XMP sidecar files.")
+        logger.error(f"⚠ {len(api_failed_photos)} photo(s) failed to update (possible read-only/external library)")
         
-        # Ask if user wants to create XMP files
-        try:
-            response = input("\nCreate XMP sidecar files for these photos? (y/n): ").strip().lower()
-            if response == 'y':
+        if not enable_xmp:
+            # XMP not enabled: just show error and suggestion
+            logger.error("\nThese photos might be from read-only or external libraries.")
+            logger.error("To create XMP sidecar files for these photos, use: --enable-xmp")
+            logger.info("\nFailed photos:")
+            for item in api_failed_photos:
+                logger.error(f"  ✗ {item['photo']['name']}: {item['error']}")
+        else:
+            # XMP enabled: run the full pipeline
+            logger.info("-" * 80)
+            logger.info("Creating XMP sidecar files for failed photos...")
+            
+            xmp_writer = XMPWriter(logger=logger)
+            xmp_created = 0
+            xmp_failed = []
+            
+            for item in api_failed_photos:
+                photo = item['photo']
+                gps = item['gps']
+                try:
+                    xmp_file = xmp_writer.write_xmp_file(
+                        photo_path=photo['name'],
+                        latitude=gps['latitude'],
+                        longitude=gps['longitude']
+                    )
+                    logger.info(f"✓ Created XMP: {xmp_file}")
+                    xmp_created += 1
+                except Exception as e:
+                    logger.warning(f"✗ Failed to create XMP for {photo['name']}: {e}")
+                    xmp_failed.append(photo['name'])
+            
+            logger.info("-" * 80)
+            logger.info(f"XMP files created: {xmp_created}/{len(api_failed_photos)}")
+            logger.info(f"XMP directory: {xmp_writer.output_directory.absolute()}")
+            
+            # Ask if user wants to trigger metadata rescan
+            if xmp_created > 0:
                 logger.info("-" * 80)
-                logger.info("Creating XMP sidecar files...")
-                
-                xmp_writer = XMPWriter(logger=logger)
-                xmp_created = 0
-                xmp_failed = []
-                
-                for item in api_failed_photos:
-                    photo = item['photo']
-                    gps = item['gps']
-                    try:
-                        xmp_file = xmp_writer.write_xmp_file(
-                            photo_path=photo['name'],
-                            latitude=gps['latitude'],
-                            longitude=gps['longitude']
-                        )
-                        logger.info(f"✓ Created XMP: {xmp_file}")
-                        xmp_created += 1
-                    except Exception as e:
-                        logger.warning(f"✗ Failed to create XMP for {photo['name']}: {e}")
-                        xmp_failed.append(photo['name'])
-                
-                logger.info("-" * 80)
-                logger.info(f"XMP files created: {xmp_created}/{len(api_failed_photos)}")
-                logger.info(f"XMP directory: {xmp_writer.output_directory.absolute()}")
-                
-                # Ask if user wants to trigger metadata rescan
-                if xmp_created > 0:
-                    logger.info("-" * 80)
-                    try:
-                        response = input("\nTrigger metadata rescan in Immich for these photos? (y/n): ").strip().lower()
-                        if response == 'y':
-                            logger.info("Waiting 3 seconds for Immich to detect new XMP files...")
-                            time.sleep(3)
-                            
-                            # Retry updating the photos
-                            logger.info("Retrying API updates...")
-                            retry_count = 0
-                            for item in api_failed_photos:
-                                photo = item['photo']
-                                gps = item['gps']
-                                try:
-                                    url = f"{immich_url}/api/assets/{photo['id']}"
-                                    payload = {
-                                        'latitude': gps['latitude'],
-                                        'longitude': gps['longitude'],
-                                    }
-                                    response = session.put(url, json=payload, timeout=10)
-                                    response.raise_for_status()
-                                    logger.debug(f"✓ Retry succeeded for {photo['name']}")
-                                    retry_count += 1
-                                except Exception as e:
-                                    logger.debug(f"✗ Retry failed for {photo['name']}: {e}")
-                            
-                            if retry_count > 0:
-                                logger.info(f"✓ Successfully retried {retry_count} photos after rescan")
-                    except EOFError:
-                        logger.info("(Running in non-interactive mode, skipping rescan)")
-        except EOFError:
-            logger.info("(Running in non-interactive mode, skipping XMP prompt)")
+                try:
+                    response = input("\nTrigger metadata rescan in Immich for these photos? (y/n): ").strip().lower()
+                    if response == 'y':
+                        logger.info("Waiting 3 seconds for Immich to detect new XMP files...")
+                        time.sleep(3)
+                        
+                        # Retry updating the photos
+                        logger.info("Retrying API updates...")
+                        retry_count = 0
+                        for item in api_failed_photos:
+                            photo = item['photo']
+                            gps = item['gps']
+                            try:
+                                url = f"{immich_url}/api/assets/{photo['id']}"
+                                payload = {
+                                    'latitude': gps['latitude'],
+                                    'longitude': gps['longitude'],
+                                }
+                                response = session.put(url, json=payload, timeout=10)
+                                response.raise_for_status()
+                                logger.debug(f"✓ Retry succeeded for {photo['name']}")
+                                retry_count += 1
+                            except Exception as e:
+                                logger.debug(f"✗ Retry failed for {photo['name']}: {e}")
+                        
+                        if retry_count > 0:
+                            logger.info(f"✓ Successfully retried {retry_count} photos after rescan")
+                except EOFError:
+                    logger.info("(Running in non-interactive mode, skipping rescan prompt)")
     
     # Show failed photos details only if there were failures
     if failed_count > 0:

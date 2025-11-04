@@ -27,6 +27,12 @@ rollback:
   directory: ./rollback  # Directory to store rollback sessions
   max_sessions: 10  # Keep last N rollback sessions
 
+# XMP sidecar configuration (for read-only/external libraries)
+xmp:
+  enabled: false  # Enable XMP sidecar creation (requires --enable-xmp flag)
+  directory: ./xmp  # Directory to store XMP sidecar files
+  # Note: XMP files are created only when API updates fail AND --enable-xmp is set
+
 # Logging configuration
 logging:
   verbose: false
