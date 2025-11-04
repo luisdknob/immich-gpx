@@ -291,6 +291,7 @@ def update_photo_positions(
     logger: logging.Logger,
     mode: str = 'all',
     api_key: str = None,
+    rollback_session = None,
 ) -> Optional[List[Dict]]:
     """
     Update photo GPS coordinates in Immich via REST API.
@@ -298,6 +299,9 @@ def update_photo_positions(
     Applies GPS coordinates from matched GPX points to photos in Immich. Supports
     two update modes: update all photos (replacing existing GPS) or update only
     photos without GPS data (preserving existing coordinates).
+
+    If rollback_session provided, captures original coordinates before update
+    for potential rollback.
     
     Requires IMMICH_API_KEY environment variable for authentication. Reports
     detailed success/failure statistics for each update attempt.
@@ -309,6 +313,7 @@ def update_photo_positions(
         immich_url: Base URL of Immich server (e.g., 'http://localhost:2283')
         logger: Logger instance for output and error reporting
         mode: Update strategy - 'all' (replace all GPS) or 'without-gps' (preserve existing)
+        rollback_session: RollbackSession object to capture update history
         
     Returns:
         List of updated matches if successful, None if API key missing or invalid mode
@@ -360,6 +365,17 @@ def update_photo_positions(
                 continue
         
         try:
+            # Capture original coordinates for rollback if enabled
+            if rollback_session:
+                rollback_session.add_photo(
+                    photo_id=photo_id,
+                    filename=photo['name'],
+                    original_lat=photo.get('latitude'),
+                    original_lon=photo.get('longitude'),
+                    new_lat=gps['latitude'],
+                    new_lon=gps['longitude'],
+                )
+            
             # Update photo with new GPS coordinates using Immich API PUT endpoint
             url = f"{immich_url}/api/assets/{photo_id}"
             

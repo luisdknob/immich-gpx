@@ -45,6 +45,7 @@ from immich_gpx.core.immich_client import ImmichAPI
 from immich_gpx.core.logger import setup_logging
 from immich_gpx.utils import print_results
 from immich_gpx.metrics import PerformanceMetrics
+from immich_gpx.rollback import RollbackManager
 from immich_gpx import __version__
 
 
@@ -145,6 +146,12 @@ Examples:
         help='Update mode: all (update all photos), without-gps (only photos without GPS), '
              'prompt (ask user, default)',
     )
+    parser.add_argument(
+        '--rollback',
+        metavar='SESSION_ID',
+        default=None,
+        help='Rollback GPS updates for a specific session (use "latest" for most recent)',
+    )
 
     args = parser.parse_args()
 
@@ -178,6 +185,63 @@ Examples:
     if config_file:
         logger.info(f"Found config file: {config_file}")
         logger.info(f"Loaded configuration from {config_file}")
+
+    # Handle rollback command
+    if args.rollback:
+        from tqdm import tqdm
+        immich_url = args.immich_url or config.get('immich', {}).get('url')
+        immich_api_key = args.immich_api_key or config.get('immich', {}).get('api_key')
+        verify_ssl = config.get('immich', {}).get('verify_ssl', True)
+        if args.no_verify_ssl:
+            verify_ssl = False
+        
+        if not immich_url or not immich_api_key:
+            logger.error("Error: Missing Immich credentials for rollback.")
+            sys.exit(1)
+        
+        # List available sessions if user wants latest but none exist
+        rollback_mgr = RollbackManager(logger=logger)
+        session_data = rollback_mgr.get_session(args.rollback)
+        
+        if not session_data:
+            logger.error(f"Rollback session '{args.rollback}' not found.")
+            logger.info("Available sessions:")
+            for sess in rollback_mgr.list_sessions():
+                logger.info(f"  {sess['session_id']}: {sess['total_updated']} photos ({sess['timestamp']})")
+            sys.exit(1)
+        
+        # Perform rollback
+        logger.info(f"Rolling back session {session_data['session_id']}")
+        immich = ImmichAPI(immich_url, immich_api_key, verify_ssl=verify_ssl, timeout=args.timeout, logger=logger)
+        
+        try:
+            immich.test_connection()
+        except (AuthenticationError, ConnectionError) as e:
+            logger.error(f"Failed to connect to Immich: {e}")
+            sys.exit(1)
+        
+        # Restore coordinates for each photo
+        success_count = 0
+        fail_count = 0
+        for photo in tqdm(session_data['photos'], desc="Restoring coordinates", unit="photo"):
+            try:
+                if photo['had_gps']:
+                    # Restore original coordinates
+                    immich.update_photo_exif(
+                        photo['id'],
+                        photo['original_latitude'],
+                        photo['original_longitude']
+                    )
+                else:
+                    # Remove GPS data that was added
+                    immich.update_photo_exif(photo['id'], None, None)
+                success_count += 1
+            except Exception as e:
+                logger.warning(f"Failed to restore {photo['filename']}: {e}")
+                fail_count += 1
+        
+        logger.info(f"Rollback complete: {success_count} restored, {fail_count} failed")
+        sys.exit(0)
     
     # Extract config values (command-line args take precedence over config file)
     immich_url = args.immich_url or config.get('immich', {}).get('url')
@@ -299,7 +363,28 @@ Examples:
             
             # Update with metrics
             update_metrics = PerformanceMetrics("Update Photos")
-            update_photo_positions(matches_to_update, immich_url, logger, mode=update_mode, api_key=immich_api_key)
+            
+            # Create rollback session to capture update history
+            rollback_mgr = RollbackManager(logger=logger)
+            rollback_session = rollback_mgr.create_session(
+                gpx_file=args.gpx_file,
+                update_mode=update_mode
+            )
+            
+            update_photo_positions(
+                matches_to_update,
+                immich_url,
+                logger,
+                mode=update_mode,
+                api_key=immich_api_key,
+                rollback_session=rollback_session
+            )
+            
+            # Save rollback session and cleanup old ones
+            rollback_session.save()
+            rollback_mgr.cleanup_old_sessions(keep_count=10)
+            logger.info(f"Rollback data saved: {rollback_session.session_id}")
+            
             update_metrics.complete(items_processed=len(matches_to_update), errors=0)
             logger.info(f"Update complete - {update_metrics.detailed_summary()}")
 
