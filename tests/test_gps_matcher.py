@@ -205,3 +205,140 @@ def test_multiple_matches_same_photo(gps_points):
     assert len(matches) == 1
     # gps_point['time'] is returned as ISO string in the match
     assert matches[0]['gps_point']['time'] == '2022-02-16T12:06:00+00:00'
+
+
+def test_matches_sorted_oldest_first(gps_points):
+    """Test that matches are sorted by photo timestamp (oldest first)."""
+    matcher = GPSMatcher(threshold=120)
+    
+    # Create photos with different timestamps (not in chronological order)
+    photos = [
+        {
+            'id': 'photo3',
+            'originalFileName': 'test3.jpg',
+            'exifInfo': {
+                'dateTimeOriginal': '2022-02-16T12:09:00Z',  # Third
+                'latitude': 41.0,
+                'longitude': -71.0
+            }
+        },
+        {
+            'id': 'photo1',
+            'originalFileName': 'test1.jpg',
+            'exifInfo': {
+                'dateTimeOriginal': '2022-02-16T12:05:00Z',  # First (oldest)
+                'latitude': 41.0,
+                'longitude': -71.0
+            }
+        },
+        {
+            'id': 'photo2',
+            'originalFileName': 'test2.jpg',
+            'exifInfo': {
+                'dateTimeOriginal': '2022-02-16T12:07:00Z',  # Second
+                'latitude': 41.0,
+                'longitude': -71.0
+            }
+        }
+    ]
+    
+    matches = matcher.match_photos_to_points(gps_points, photos)
+    
+    # Should have all 3 matches
+    assert len(matches) == 3
+    
+    # Verify matches are sorted by time (oldest first)
+    assert matches[0]['photo']['id'] == 'photo1'
+    assert matches[0]['photo']['time'] == '2022-02-16T12:05:00Z'
+    
+    assert matches[1]['photo']['id'] == 'photo2'
+    assert matches[1]['photo']['time'] == '2022-02-16T12:07:00Z'
+    
+    assert matches[2]['photo']['id'] == 'photo3'
+    assert matches[2]['photo']['time'] == '2022-02-16T12:09:00Z'
+
+
+def test_match_numbering_follows_order():
+    """Test that match numbering (#1, #2, etc.) follows chronological order."""
+    matcher = GPSMatcher(threshold=120)
+    
+    gps_points = [
+        {
+            'latitude': 41.0,
+            'longitude': -71.0,
+            'elevation': 100,
+            'time': datetime(2022, 2, 16, 12, 6, 0, tzinfo=timezone.utc)
+        }
+    ]
+    
+    photos = [
+        {
+            'id': 'photo2',
+            'originalFileName': 'newer.jpg',
+            'exifInfo': {
+                'dateTimeOriginal': '2022-02-16T12:06:30Z',  # Newer
+                'latitude': 41.0,
+                'longitude': -71.0
+            }
+        },
+        {
+            'id': 'photo1',
+            'originalFileName': 'older.jpg',
+            'exifInfo': {
+                'dateTimeOriginal': '2022-02-16T12:06:00Z',  # Older
+                'latitude': 41.0,
+                'longitude': -71.0
+            }
+        }
+    ]
+    
+    matches = matcher.match_photos_to_points(gps_points, photos)
+    
+    # Older photo should be first (match #1)
+    assert matches[0]['photo']['name'] == 'older.jpg'
+    assert matches[1]['photo']['name'] == 'newer.jpg'
+
+
+def test_single_match_no_sort_error():
+    """Test that single match doesn't cause sorting errors."""
+    matcher = GPSMatcher(threshold=120)
+    
+    gps_points = [
+        {
+            'latitude': 41.0,
+            'longitude': -71.0,
+            'elevation': 100,
+            'time': datetime(2022, 2, 16, 12, 6, 0, tzinfo=timezone.utc)
+        }
+    ]
+    
+    photos = [
+        {
+            'id': 'photo1',
+            'originalFileName': 'test.jpg',
+            'exifInfo': {
+                'dateTimeOriginal': '2022-02-16T12:06:00Z',
+                'latitude': 41.0,
+                'longitude': -71.0
+            }
+        }
+    ]
+    
+    matches = matcher.match_photos_to_points(gps_points, photos)
+    
+    # Should have exactly one match
+    assert len(matches) == 1
+    assert matches[0]['photo']['name'] == 'test.jpg'
+
+
+def test_empty_matches_no_sort_error():
+    """Test that empty matches list doesn't cause sorting errors."""
+    matcher = GPSMatcher(threshold=120)
+    
+    gps_points = []
+    photos = []
+    
+    matches = matcher.match_photos_to_points(gps_points, photos)
+    
+    # Should have empty list
+    assert len(matches) == 0
