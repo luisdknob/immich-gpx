@@ -1,14 +1,14 @@
 """Tests for utility functions and edge cases."""
+import logging
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
-import logging
 from immich_gpx import print_results, update_photo_positions, categorize_matches, prompt_update_mode
+from tests.builders import photo, gps_point, match
 
 
-def test_print_results_with_matches():
+def test_print_results_with_matches(logger):
     """Test printing results with matches."""
-    logger = logging.getLogger('test')
     
     gps_points = [
         {
@@ -33,8 +33,8 @@ def test_print_results_with_matches():
     
     matches = [
         {
-            'photo': {'id': 'photo1', 'name': 'test.jpg', 'time': '2022-02-16T12:06:30Z', 'latitude': 41.0, 'longitude': -71.0},
-            'gps_point': {'latitude': 41.0, 'longitude': -71.0, 'elevation': 100, 'time': '2022-02-16T12:06:29'},
+            'photo': photo('photo1', 41.0, -71.0, 'test.jpg'),
+            'gps_point': gps_point(41.0, -71.0),
             'distance_meters': 10.5,
             'time_difference_seconds': 1
         }
@@ -45,9 +45,8 @@ def test_print_results_with_matches():
         result = print_results(gps_points, photos, matches, immich_url="", logger=logger)
 
 
-def test_print_results_no_matches():
+def test_print_results_no_matches(logger):
     """Test printing results with no matches."""
-    logger = logging.getLogger('test')
     
     gps_points = []
     photos = []
@@ -56,9 +55,8 @@ def test_print_results_no_matches():
     result = print_results(gps_points, photos, matches, logger=logger)
 
 
-def test_print_results_with_null_gps_data():
+def test_print_results_with_null_gps_data(logger):
     """Test printing results with missing GPS data."""
-    logger = logging.getLogger('test')
     
     gps_points = []
     
@@ -76,8 +74,8 @@ def test_print_results_with_null_gps_data():
     
     matches = [
         {
-            'photo': {'id': 'photo1', 'name': 'test.jpg', 'time': '2022-02-16T12:06:30Z', 'latitude': None, 'longitude': None},
-            'gps_point': {'latitude': 41.0, 'longitude': -71.0, 'elevation': 100, 'time': '2022-02-16T12:06:29'},
+            'photo': photo('photo1', name='test.jpg'),
+            'gps_point': gps_point(41.0, -71.0),
             'distance_meters': None,
             'time_difference_seconds': 1
         }
@@ -86,7 +84,7 @@ def test_print_results_with_null_gps_data():
     result = print_results(gps_points, photos, matches, immich_url="", logger=logger)
 
 
-def test_print_match_without_distance():
+def test_print_match_without_distance(logger):
     """Test that 'Distance: None meters' is not displayed when distance is None."""
     gps_points = []
     
@@ -104,8 +102,8 @@ def test_print_match_without_distance():
     
     matches = [
         {
-            'photo': {'id': 'photo1', 'name': 'test.jpg', 'time': '2022-02-16T12:06:30Z', 'latitude': None, 'longitude': None},
-            'gps_point': {'latitude': 41.0, 'longitude': -71.0, 'elevation': 100, 'time': '2022-02-16T12:06:29'},
+            'photo': photo('photo1', name='test.jpg'),
+            'gps_point': gps_point(41.0, -71.0),
             'distance_meters': None,
             'time_difference_seconds': 1
         }
@@ -123,7 +121,7 @@ def test_print_match_without_distance():
     assert len(distance_logs) == 0, f"Found 'Distance: None' in logs: {distance_logs}"
 
 
-def test_print_match_with_valid_distance():
+def test_print_match_with_valid_distance(logger):
     """Test that valid distance values are displayed correctly."""
     gps_points = [
         {
@@ -148,8 +146,8 @@ def test_print_match_with_valid_distance():
     
     matches = [
         {
-            'photo': {'id': 'photo1', 'name': 'test.jpg', 'time': '2022-02-16T12:06:30Z', 'latitude': 41.0, 'longitude': -71.0},
-            'gps_point': {'latitude': 41.0, 'longitude': -71.0, 'elevation': 100, 'time': '2022-02-16T12:06:29'},
+            'photo': photo('photo1', 41.0, -71.0, 'test.jpg'),
+            'gps_point': gps_point(41.0, -71.0),
             'distance_meters': 45.3,
             'time_difference_seconds': 1
         }
@@ -167,7 +165,7 @@ def test_print_match_with_valid_distance():
     assert len(distance_logs) == 1, f"Expected one distance log with 45.3, got: {distance_logs}"
 
 
-def test_print_match_with_zero_distance():
+def test_print_match_with_zero_distance(logger):
     """Test that distance=0 is still displayed (not treated as None)."""
     gps_points = [
         {
@@ -192,8 +190,8 @@ def test_print_match_with_zero_distance():
     
     matches = [
         {
-            'photo': {'id': 'photo1', 'name': 'test.jpg', 'time': '2022-02-16T12:06:30Z', 'latitude': 41.0, 'longitude': -71.0},
-            'gps_point': {'latitude': 41.0, 'longitude': -71.0, 'elevation': 100, 'time': '2022-02-16T12:06:29'},
+            'photo': photo('photo1', 41.0, -71.0, 'test.jpg'),
+            'gps_point': gps_point(41.0, -71.0),
             'distance_meters': 0,
             'time_difference_seconds': 1
         }
@@ -234,7 +232,7 @@ def test_setup_logging_default():
     assert logger.name == 'immich-gpx'
 
 
-def test_setup_logging_creates_directory():
+def test_setup_logging_creates_directory(logger):
     """Test that logging setup creates log directory."""
     from immich_gpx import setup_logging
     from pathlib import Path
@@ -249,9 +247,8 @@ def test_setup_logging_creates_directory():
 
 
 @patch('requests.Session.put')
-def test_update_photo_positions_success(mock_put):
+def test_update_photo_positions_success(mock_put, logger):
     """Test successful photo position update."""
-    logger = logging.getLogger('test')
     
     mock_response = Mock()
     mock_response.raise_for_status.return_value = None
@@ -293,11 +290,11 @@ def test_gpx_parser_with_elevations(tmp_path):
     assert points[0]['elevation'] == 100.5
 
 
-def test_immich_api_logging_messages(caplog):
+def test_immich_api_logging_messages(caplog, logger):
     """Test that ImmichAPI logs debug messages."""
+    import logging
     from immich_gpx import ImmichAPI
     
-    logger = logging.getLogger('immich_gpx_linker')
     logger.setLevel(logging.DEBUG)
     
     api = ImmichAPI("https://test.com", "key", verbose=True, logger=logger)
@@ -403,9 +400,8 @@ def test_categorize_matches_partial_gps():
     assert categorized['counts']['without_gps'] == 2
 
 
-def test_prompt_update_mode_choice_all(monkeypatch):
+def test_prompt_update_mode_choice_all(monkeypatch, logger):
     """Test prompt_update_mode selecting all photos."""
-    logger = logging.getLogger('test')
     categorized = {
         'counts': {'total': 2, 'with_gps': 1, 'without_gps': 1},
         'all': [],
@@ -421,9 +417,8 @@ def test_prompt_update_mode_choice_all(monkeypatch):
     assert result == 'all'
 
 
-def test_prompt_update_mode_choice_without_gps(monkeypatch):
+def test_prompt_update_mode_choice_without_gps(monkeypatch, logger):
     """Test prompt_update_mode selecting without-gps photos."""
-    logger = logging.getLogger('test')
     categorized = {
         'counts': {'total': 2, 'with_gps': 1, 'without_gps': 1},
         'all': [],
@@ -439,9 +434,8 @@ def test_prompt_update_mode_choice_without_gps(monkeypatch):
     assert result == 'without-gps'
 
 
-def test_prompt_update_mode_choice_cancel(monkeypatch):
+def test_prompt_update_mode_choice_cancel(monkeypatch, logger):
     """Test prompt_update_mode selecting cancel."""
-    logger = logging.getLogger('test')
     categorized = {
         'counts': {'total': 2, 'with_gps': 1, 'without_gps': 1},
         'all': [],
@@ -457,7 +451,7 @@ def test_prompt_update_mode_choice_cancel(monkeypatch):
     assert result == 'cancel'
 
 
-def test_update_photo_positions_all_mode():
+def test_update_photo_positions_all_mode(logger):
     """Test updating all photos regardless of existing GPS."""
     matches = [
         {
@@ -470,7 +464,6 @@ def test_update_photo_positions_all_mode():
         }
     ]
     
-    logger = logging.getLogger('test')
     
     with patch('requests.Session.put') as mock_put:
         mock_response = Mock()
@@ -483,7 +476,7 @@ def test_update_photo_positions_all_mode():
         assert mock_put.call_count == 2
 
 
-def test_update_photo_positions_without_gps_mode():
+def test_update_photo_positions_without_gps_mode(logger):
     """Test updating only photos without GPS."""
     matches = [
         {
@@ -496,7 +489,6 @@ def test_update_photo_positions_without_gps_mode():
         }
     ]
     
-    logger = logging.getLogger('test')
     
     with patch('requests.Session.put') as mock_put:
         mock_response = Mock()
