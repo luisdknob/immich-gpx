@@ -265,3 +265,223 @@ def test_rollback_file_json_format(temp_rollback_dir):
 
     assert isinstance(data["photos"], list)
     assert isinstance(data["total_updated"], int)
+
+
+# ============================================================================
+# PHASE 3: Integration Tests
+# ============================================================================
+
+
+def test_full_update_and_rollback_cycle(rollback_manager):
+    """Test complete cycle: create session -> add photos -> save -> retrieve."""
+    # Create session
+    session = rollback_manager.create_session(
+        gpx_file="track.gpx", update_mode="matched"
+    )
+    session_id = session.session_id
+
+    # Add multiple photos
+    for i in range(5):
+        session.add_photo(
+            photo_id=f"photo_{i}",
+            filename=f"IMG_{i}.jpg",
+            original_lat=-41.2,
+            original_lon=-71.8,
+            new_lat=-41.3 + (i * 0.01),
+            new_lon=-71.9 + (i * 0.01),
+        )
+
+    session.save()
+
+    # Retrieve and verify
+    retrieved_data = rollback_manager.get_session(session_id)
+    assert retrieved_data is not None
+    assert retrieved_data["session_id"] == session_id
+    assert len(retrieved_data["photos"]) == 5
+    assert retrieved_data["total_updated"] == 5
+    assert retrieved_data["gpx_file"] == "track.gpx"
+
+
+def test_multiple_sessions_isolation(rollback_manager):
+    """Test that multiple sessions don't interfere with each other."""
+    # Create first session with 3 photos
+    session1 = rollback_manager.create_session(gpx_file="track1.gpx", update_mode="all")
+    for i in range(3):
+        session1.add_photo(
+            photo_id=f"s1_photo_{i}",
+            filename=f"S1_IMG_{i}.jpg",
+            original_lat=-41.0,
+            original_lon=-71.0,
+            new_lat=-41.0,
+            new_lon=-71.0,
+        )
+    session1.save()
+
+    # Create second session with 2 photos
+    session2 = rollback_manager.create_session(gpx_file="track2.gpx", update_mode="unmatched")
+    for i in range(2):
+        session2.add_photo(
+            photo_id=f"s2_photo_{i}",
+            filename=f"S2_IMG_{i}.jpg",
+            original_lat=-42.0,
+            original_lon=-72.0,
+            new_lat=-42.0,
+            new_lon=-72.0,
+        )
+    session2.save()
+
+    # Verify both sessions exist independently
+    all_sessions = rollback_manager.list_sessions()
+    assert len(all_sessions) >= 2
+
+    retrieved_s1 = rollback_manager.get_session(session1.session_id)
+    retrieved_s2 = rollback_manager.get_session(session2.session_id)
+
+    assert retrieved_s1["total_updated"] == 3
+    assert retrieved_s2["total_updated"] == 2
+    assert retrieved_s1["gpx_file"] == "track1.gpx"
+    assert retrieved_s2["gpx_file"] == "track2.gpx"
+
+
+def test_rollback_after_app_restart(rollback_manager, temp_rollback_dir):
+    """Test that rollback data persists after app restart (new manager instance)."""
+    # Create and save session
+    session = rollback_manager.create_session(gpx_file="persistent.gpx", update_mode="all")
+    session_id = session.session_id
+    session.add_photo(
+        photo_id="persistent_photo",
+        filename="persistent.jpg",
+        original_lat=-41.5,
+        original_lon=-71.5,
+        new_lat=-41.6,
+        new_lon=-71.6,
+    )
+    session.save()
+
+    # Simulate app restart - create new manager instance
+    new_manager = RollbackManager(rollback_dir=temp_rollback_dir, logger=logging.getLogger("test"))
+
+    # Verify session is still accessible
+    retrieved = new_manager.get_session(session_id)
+    assert retrieved is not None
+    assert retrieved["session_id"] == session_id
+    assert retrieved["gpx_file"] == "persistent.gpx"
+    assert len(retrieved["photos"]) == 1
+    assert retrieved["photos"][0]["id"] == "persistent_photo"
+
+
+def test_get_latest_session(rollback_manager):
+    """Test retrieving the latest (most recent) rollback session."""
+    import time
+
+    # Create multiple sessions with larger delays to ensure different timestamps
+    session_ids = []
+    for i in range(2):
+        session = rollback_manager.create_session(
+            gpx_file=f"track_{i}.gpx", update_mode="all"
+        )
+        session.add_photo(
+            photo_id=f"photo_{i}",
+            filename=f"IMG_{i}.jpg",
+            original_lat=-41.0,
+            original_lon=-71.0,
+            new_lat=-41.0 + (i * 0.01),
+            new_lon=-71.0 + (i * 0.01),
+        )
+        session.save()
+        session_ids.append(session.session_id)
+        time.sleep(1.5)  # Ensure different timestamps (YYYYMMDD_HHMMSS precision)
+
+    # Get latest should return most recent
+    latest_session = rollback_manager.get_session("latest")
+    assert latest_session is not None
+    # Latest should be the last one we created
+    assert latest_session["session_id"] == session_ids[-1]
+    assert latest_session["gpx_file"] == "track_1.gpx"
+
+
+def test_edge_case_empty_session(rollback_manager):
+    """Test handling of session with no photos."""
+    session = rollback_manager.create_session(gpx_file="empty.gpx", update_mode="all")
+    session.save()
+
+    retrieved = rollback_manager.get_session(session.session_id)
+    assert retrieved is not None
+    assert retrieved["total_updated"] == 0
+    assert len(retrieved["photos"]) == 0
+
+
+def test_edge_case_session_with_gps_false(rollback_manager):
+    """Test rollback for photos that originally had no GPS data."""
+    session = rollback_manager.create_session(gpx_file="track.gpx", update_mode="all")
+
+    # Photo that had no GPS, now has GPS added
+    session.add_photo(
+        photo_id="no_gps_photo",
+        filename="IMG_nogps.jpg",
+        original_lat=None,
+        original_lon=None,
+        new_lat=-41.2,
+        new_lon=-71.8,
+    )
+    session.save()
+
+    retrieved = rollback_manager.get_session(session.session_id)
+    photo_data = retrieved["photos"][0]
+    assert photo_data["original_latitude"] is None
+    assert photo_data["original_longitude"] is None
+    assert photo_data["had_gps"] is False
+    assert photo_data["new_latitude"] == -41.2
+
+
+# ============================================================================
+# PHASE 4: Enhancements (Progress Bar & Config)
+# ============================================================================
+
+
+def test_progress_iterator_with_tqdm(rollback_manager):
+    """Test progress iterator returns tqdm when available."""
+    items = [1, 2, 3, 4, 5]
+    iterator = rollback_manager.create_progress_iterator(
+        items, description="Test", disable=False
+    )
+    
+    # Should be iterable
+    result = list(iterator)
+    assert result == items
+
+
+def test_progress_iterator_disabled(rollback_manager):
+    """Test progress iterator returns plain list when disabled."""
+    items = [1, 2, 3, 4, 5]
+    iterator = rollback_manager.create_progress_iterator(
+        items, description="Test", disable=True
+    )
+    
+    # Should return items directly
+    assert iterator == items
+    result = list(iterator)
+    assert result == items
+
+
+def test_progress_iterator_empty_list(rollback_manager):
+    """Test progress iterator handles empty list."""
+    items = []
+    iterator = rollback_manager.create_progress_iterator(
+        items, description="Test", disable=True
+    )
+    
+    result = list(iterator)
+    assert result == []
+
+
+def test_progress_iterator_with_description(rollback_manager):
+    """Test progress iterator accepts custom description."""
+    items = ["a", "b", "c"]
+    # Should not raise
+    iterator = rollback_manager.create_progress_iterator(
+        items, description="Processing photos", disable=True
+    )
+    
+    assert list(iterator) == items
+

@@ -14,8 +14,14 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Callable
 from uuid import uuid4
+
+try:
+    from tqdm import tqdm
+    TQDM_AVAILABLE = True
+except ImportError:
+    TQDM_AVAILABLE = False
 
 
 class RollbackSession:
@@ -228,3 +234,25 @@ class RollbackManager:
                 self.logger.warning(f"Failed to delete rollback file {filepath}: {e}")
 
         return deleted_count
+
+    def create_progress_iterator(
+        self,
+        items: List,
+        description: str = "Processing",
+        disable: bool = False,
+    ) -> Callable:
+        """
+        Create a progress iterator for processing items.
+
+        Args:
+            items: List of items to iterate
+            description: Progress bar description
+            disable: Disable progress bar (e.g., for non-interactive environments)
+
+        Returns:
+            Progress iterator (tqdm or plain list)
+        """
+        if not disable and TQDM_AVAILABLE:
+            return tqdm(items, desc=description, unit="photo")
+        return items
+

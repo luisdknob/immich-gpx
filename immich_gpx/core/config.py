@@ -32,6 +32,11 @@ DEFAULT_VERIFY_SSL = True             # Verify SSL certificates by default
 TIME_BUFFER_BEFORE_MINUTES = 60      # Query photos 60 minutes before GPX track
 TIME_BUFFER_AFTER_MINUTES = 2        # Query photos 2 minutes after GPX track
 
+# Rollback configuration defaults
+DEFAULT_ROLLBACK_ENABLED = True       # Enable rollback by default
+DEFAULT_ROLLBACK_DIR = "./rollback"   # Default rollback directory
+DEFAULT_ROLLBACK_MAX_SESSIONS = 10    # Keep last 10 rollback sessions
+
 # API key validation
 MIN_API_KEY_LENGTH = 10              # Minimum expected API key length
 
@@ -73,6 +78,11 @@ class Config:
     TIME_BUFFER_BEFORE_MINUTES = TIME_BUFFER_BEFORE_MINUTES
     TIME_BUFFER_AFTER_MINUTES = TIME_BUFFER_AFTER_MINUTES
     
+    # Rollback defaults
+    DEFAULT_ROLLBACK_ENABLED = DEFAULT_ROLLBACK_ENABLED
+    DEFAULT_ROLLBACK_DIR = DEFAULT_ROLLBACK_DIR
+    DEFAULT_ROLLBACK_MAX_SESSIONS = DEFAULT_ROLLBACK_MAX_SESSIONS
+    
     def __init__(self) -> None:
         """
         Initialize configuration with default values.
@@ -90,6 +100,11 @@ class Config:
         self.timeout: int = self.DEFAULT_TIMEOUT
         self.verify_ssl: bool = self.DEFAULT_VERIFY_SSL
         self.verbose: bool = False
+        
+        # Rollback configuration
+        self.rollback_enabled: bool = self.DEFAULT_ROLLBACK_ENABLED
+        self.rollback_dir: str = self.DEFAULT_ROLLBACK_DIR
+        self.rollback_max_sessions: int = self.DEFAULT_ROLLBACK_MAX_SESSIONS
     
     @classmethod
     def from_args_and_env(cls, args) -> 'Config':
@@ -141,6 +156,11 @@ class Config:
         config.timeout = args.timeout
         config.verify_ssl = not args.no_verify_ssl
         config.verbose = args.verbose
+        
+        # Rollback configuration from environment or defaults
+        config.rollback_enabled = os.getenv('ROLLBACK_ENABLED', 'true').lower() == 'true'
+        config.rollback_dir = os.getenv('ROLLBACK_DIR', config.DEFAULT_ROLLBACK_DIR)
+        config.rollback_max_sessions = int(os.getenv('ROLLBACK_MAX_SESSIONS', config.DEFAULT_ROLLBACK_MAX_SESSIONS))
         
         # Validate all parameters
         config.validate()
@@ -247,5 +267,8 @@ class Config:
             f"threshold={self.threshold}, "
             f"timeout={self.timeout}, "
             f"verify_ssl={self.verify_ssl}, "
-            f"verbose={self.verbose})"
+            f"verbose={self.verbose}, "
+            f"rollback_enabled={self.rollback_enabled}, "
+            f"rollback_dir='{self.rollback_dir}', "
+            f"rollback_max_sessions={self.rollback_max_sessions})"
         )
