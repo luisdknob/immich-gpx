@@ -363,7 +363,8 @@ def update_photo_positions(
     if enable_xmp:
         xmp_writer = XMPWriter(logger=logger)
     
-    # Process each matched photo with tqdm progress bar
+    # Update all photos via API
+    logger.info("Updating photos via API")
     for match in tqdm(matches, desc="Updating photos", unit="photo", leave=True, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt}'):
         photo = match['photo']
         gps = match['gps_point']
@@ -420,35 +421,99 @@ def update_photo_positions(
             })
             failed_count += 1
     
-    # Log summary statistics
+    # Verify updates by re-fetching photo metadata
     logger.info("-" * 80)
-    if xmp_count > 0:
-        logger.info(f"Complete! ✓ {updated_count} updated | 📄 {xmp_count} XMP created | → {skipped_count} skipped | ✗ {failed_count} failed")
-    else:
-        logger.info(f"Complete! ✓ {updated_count} updated | → {skipped_count} skipped | ✗ {failed_count} failed")
+    logger.info("Verify if updates were persisted")
+    verified_count = 0
+    verified_failed = []
+
+    for match in tqdm(matches, desc="Verifying updates", unit="photo", leave=True, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt}'):
+        photo = match['photo']
+        gps = match['gps_point']
+        
+        # Skip if we already know it failed in Phase 1
+        if any(item['photo']['id'] == photo['id'] for item in api_failed_photos):
+            continue
+        
+        # Skip if mode is without-gps and photo already had GPS
+        if mode == 'without-gps':
+            lat = photo.get('latitude')
+            lon = photo.get('longitude')
+            if lat is not None and lon is not None:
+                continue
+        
+        try:
+            # Re-fetch photo metadata to verify coordinates were actually updated
+            url = f"{immich_url}/api/assets/{photo['id']}"
+            response = session.get(url, timeout=10)
+            response.raise_for_status()
+            updated_photo = response.json()
+            
+            # Check if coordinates match what we set
+            new_lat = updated_photo.get('exifInfo', {}).get('latitude')
+            new_lon = updated_photo.get('exifInfo', {}).get('longitude')
+            
+            if new_lat == gps['latitude'] and new_lon == gps['longitude']:
+                # Verification successful - coordinates actually changed!
+                verified_count += 1
+            else:
+                # Verification FAILED - coordinates didn't change (silent failure!)
+                logger.debug(f"Verification failed for {photo['name']}: expected ({gps['latitude']}, {gps['longitude']}), got ({new_lat}, {new_lon})")
+                verified_failed.append({
+                    'photo': photo,
+                    'gps': gps,
+                    'error': 'Coordinates not updated (read-only or external library)'
+                })
+        except Exception as e:
+            logger.debug(f"Failed to verify {photo['name']}: {e}")
+            verified_failed.append({
+                'photo': photo,
+                'gps': gps,
+                'error': f"Verification error: {str(e)}"
+            })
     
-    # Handle API failures
-    if api_failed_photos:
+    # Combine all failed photos (API failures + verification failures)
+    all_failed = api_failed_photos + verified_failed
+    
+    # Log summary statistics with detailed breakdown
+    logger.info("-" * 80)
+    api_fail_count = len(api_failed_photos)
+    verify_fail_count = len(verified_failed)
+    
+    # Create detailed summary
+    summary_parts = [f"Complete!"]
+    summary_parts.append(f"✓ {verified_count} verified")
+    if skipped_count > 0:
+        summary_parts.append(f"→ {skipped_count} skipped")
+    if api_fail_count > 0:
+        summary_parts.append(f"✗ {api_fail_count} failed (API)")
+    if verify_fail_count > 0:
+        summary_parts.append(f"⚠ {verify_fail_count} not persisted (read-only)")
+    
+    logger.info(" | ".join(summary_parts))
+    
+    # Handle unverified/failed photos
+    if all_failed:
         logger.info("-" * 80)
-        logger.error(f"⚠ {len(api_failed_photos)} photo(s) failed to update (possible read-only/external library)")
+        logger.error(f"⚠ {len(all_failed)} photo(s) could not be updated (read-only/external library)")
         
         if not enable_xmp:
             # XMP not enabled: just show error and suggestion
             logger.error("\nThese photos might be from read-only or external libraries.")
             logger.error("To create XMP sidecar files for these photos, use: --enable-xmp")
             logger.info("\nFailed photos:")
-            for item in api_failed_photos:
+            for item in all_failed:
                 logger.error(f"  ✗ {item['photo']['name']}: {item['error']}")
         else:
             # XMP enabled: run the full pipeline
             logger.info("-" * 80)
-            logger.info("Creating XMP sidecar files for failed photos...")
+            logger.info("Creating XMP sidecar files for unverified photos...")
             
             xmp_writer = XMPWriter(logger=logger)
             xmp_created = 0
             xmp_failed = []
             
-            for item in api_failed_photos:
+            for item in all_failed:
                 photo = item['photo']
                 gps = item['gps']
                 try:
@@ -464,7 +529,7 @@ def update_photo_positions(
                     xmp_failed.append(photo['name'])
             
             logger.info("-" * 80)
-            logger.info(f"XMP files created: {xmp_created}/{len(api_failed_photos)}")
+            logger.info(f"XMP files created: {xmp_created}/{len(all_failed)}")
             logger.info(f"XMP directory: {xmp_writer.output_directory.absolute()}")
             
             # Ask if user wants to trigger metadata rescan
@@ -476,36 +541,30 @@ def update_photo_positions(
                         logger.info("Waiting 3 seconds for Immich to detect new XMP files...")
                         time.sleep(3)
                         
-                        # Retry updating the photos
-                        logger.info("Retrying API updates...")
-                        retry_count = 0
-                        for item in api_failed_photos:
+                        logger.info("Retrying verification after rescan...")
+                        retry_success = 0
+                        for item in all_failed:
                             photo = item['photo']
                             gps = item['gps']
                             try:
                                 url = f"{immich_url}/api/assets/{photo['id']}"
-                                payload = {
-                                    'latitude': gps['latitude'],
-                                    'longitude': gps['longitude'],
-                                }
-                                response = session.put(url, json=payload, timeout=10)
+                                response = session.get(url, timeout=10)
                                 response.raise_for_status()
-                                logger.debug(f"✓ Retry succeeded for {photo['name']}")
-                                retry_count += 1
+                                updated_photo = response.json()
+                                
+                                new_lat = updated_photo.get('exifInfo', {}).get('latitude')
+                                new_lon = updated_photo.get('exifInfo', {}).get('longitude')
+                                
+                                if new_lat == gps['latitude'] and new_lon == gps['longitude']:
+                                    logger.debug(f"✓ Retry succeeded for {photo['name']}")
+                                    retry_success += 1
                             except Exception as e:
                                 logger.debug(f"✗ Retry failed for {photo['name']}: {e}")
                         
-                        if retry_count > 0:
-                            logger.info(f"✓ Successfully retried {retry_count} photos after rescan")
+                        if retry_success > 0:
+                            logger.info(f"✓ Successfully verified {retry_success} photos after XMP rescan")
                 except EOFError:
                     logger.info("(Running in non-interactive mode, skipping rescan prompt)")
-    
-    # Show failed photos details only if there were failures
-    if failed_count > 0:
-        logger.info("-" * 80)
-        logger.error("Failed updates:")
-        for photo in failed_photos:
-            logger.error(f"  • {photo['name']}: {photo['error']}")
     
     logger.info("=" * 80)
     
