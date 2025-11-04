@@ -87,10 +87,20 @@ class ImmichAPI:
         self.verify_ssl = verify_ssl
         self.timeout = timeout
         
+        # Set logger instance
+        self.logger = logger or logging.getLogger('immich-gpx')
+        
+        # Log the URL being used (helps debug protocol issues)
+        self.logger.debug(f"ImmichAPI initialized with URL: {self.url}")
+        
         # Initialize HTTP session with authentication header
         self.session = requests.Session()
         self.session.headers.update({'x-api-key': api_key})
         self.session.verify = verify_ssl
+        
+        # Disable automatic redirects to prevent protocol changes (HTTP->HTTPS)
+        # We'll handle redirects manually to preserve the original protocol
+        self.session.allow_redirects = False
         
         # Initialize production features
         self.response_cache = APIResponseCache(ttl_seconds=3600)  # Cache responses for 1 hour
@@ -111,6 +121,71 @@ class ImmichAPI:
         """
         if self.verbose:
             self.logger.debug(message)
+
+    def _make_request(
+        self,
+        method: str,
+        url: str,
+        **kwargs
+    ) -> requests.Response:
+        """
+        Make HTTP request while preserving original protocol in redirects.
+        
+        Handles 3xx redirects but keeps the original protocol (HTTP/HTTPS).
+        This prevents servers from forcing protocol upgrades via redirects.
+        
+        Args:
+            method: HTTP method (GET, POST, PUT, etc.)
+            url: Full URL to request
+            **kwargs: Additional arguments passed to session request
+            
+        Returns:
+            requests.Response object
+            
+        Raises:
+            requests.exceptions.RequestException: If request fails
+        """
+        # Extract the protocol and base URL
+        from urllib.parse import urlparse, urlunparse
+        
+        parsed_url = urlparse(url)
+        protocol = parsed_url.scheme
+        
+        # Make request (allow_redirects=False to prevent protocol changes)
+        response = self.session.request(method, url, allow_redirects=False, **kwargs)
+        
+        # Handle 3xx redirects manually while preserving protocol
+        max_redirects = 5
+        redirect_count = 0
+        
+        while 300 <= response.status_code < 400 and redirect_count < max_redirects:
+            redirect_location = response.headers.get('Location')
+            if not redirect_location:
+                break
+            
+            redirect_count += 1
+            self._log(f"Following redirect ({redirect_count}): {redirect_location}")
+            
+            # Parse redirect URL
+            redirect_parsed = urlparse(redirect_location)
+            
+            # Preserve original protocol if redirect location uses different protocol
+            if redirect_parsed.scheme != protocol:
+                self._log(f"Redirect attempts to change protocol from {protocol}:// to {redirect_parsed.scheme}://, preserving {protocol}://")
+                # Reconstruct URL with original protocol
+                redirect_location = urlunparse((
+                    protocol,  # Preserve original protocol
+                    redirect_parsed.netloc,
+                    redirect_parsed.path,
+                    redirect_parsed.params,
+                    redirect_parsed.query,
+                    redirect_parsed.fragment
+                ))
+            
+            # Make the redirect request
+            response = self.session.request(method, redirect_location, allow_redirects=False, **kwargs)
+        
+        return response
 
     def test_connection(self) -> bool:
         """
@@ -142,7 +217,8 @@ class ImmichAPI:
             
             # Request server version (lightweight, read-only endpoint)
             self.rate_limiter.wait_if_needed()  # Respect rate limit
-            response = self.session.get(
+            response = self._make_request(
+                'GET',
                 f"{self.url}/api/server/version",
                 timeout=self.timeout
             )
@@ -246,7 +322,7 @@ class ImmichAPI:
 
                 self._log(f"Querying {endpoint} with payload {payload}")
                 self.rate_limiter.wait_if_needed()  # Respect rate limit
-                response = self.session.post(endpoint, json=payload, timeout=self.timeout)
+                response = self._make_request('POST', endpoint, json=payload, timeout=self.timeout)
                 response.raise_for_status()
 
                 # Parse response (API returns nested structure)
@@ -336,7 +412,7 @@ class ImmichAPI:
             url = f"{self.url}/api/assets/{asset_id}"
             self._log(f"Fetching asset details for {asset_id}")
             self.rate_limiter.wait_if_needed()  # Respect rate limit
-            response = self.session.get(url, timeout=self.timeout)
+            response = self._make_request('GET', url, timeout=self.timeout)
             response.raise_for_status()
             asset = response.json()
             return asset.get('exifInfo')
@@ -375,7 +451,7 @@ class ImmichAPI:
             }
             self._log(f"Updating EXIF for {asset_id}: ({latitude}, {longitude})")
             self.rate_limiter.wait_if_needed()  # Respect rate limit
-            response = self.session.put(url, json=payload, timeout=self.timeout)
+            response = self._make_request('PUT', url, json=payload, timeout=self.timeout)
             response.raise_for_status()
             return True
         except requests.exceptions.RequestException as e:

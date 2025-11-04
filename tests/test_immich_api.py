@@ -32,38 +32,38 @@ def test_init_strips_trailing_slash():
     assert api.url == "https://photos.example.com"
 
 
-@patch('requests.Session.get')
-def test_connection_success(mock_get, immich_api):
+@patch('immich_gpx.core.immich_client.ImmichAPI._make_request')
+def test_connection_success(mock_request, immich_api):
     """Test successful connection."""
     mock_response = Mock()
     mock_response.json.return_value = {'major': 2, 'minor': 2, 'patch': 1}
     mock_response.raise_for_status.return_value = None
     mock_response.status_code = 200
-    mock_get.return_value = mock_response
+    mock_request.return_value = mock_response
     
     result = immich_api.test_connection()
     
     assert result is True
-    mock_get.assert_called_once()
+    mock_request.assert_called_once()
 
 
-@patch('requests.Session.get')
-def test_connection_failure(mock_get, immich_api):
+@patch('immich_gpx.core.immich_client.ImmichAPI._make_request')
+def test_connection_failure(mock_request, immich_api):
     """Test connection failure."""
-    mock_get.side_effect = requests.exceptions.ConnectionError("Failed")
+    mock_request.side_effect = requests.exceptions.ConnectionError("Failed")
     
     with pytest.raises(ConnectionError):
         immich_api.test_connection()
 
 
-@patch('requests.Session.post')
-def test_get_photos_in_range(mock_post, immich_api, mock_immich_response):
+@patch('immich_gpx.core.immich_client.ImmichAPI._make_request')
+def test_get_photos_in_range(mock_request, immich_api, mock_immich_response):
     """Test fetching photos in time range."""
     mock_response = Mock()
     # API returns assets in a dict with items
     mock_response.json.return_value = {'assets': {'items': mock_immich_response, 'nextPage': False}}
     mock_response.raise_for_status.return_value = None
-    mock_post.return_value = mock_response
+    mock_request.return_value = mock_response
     
     start = datetime(2022, 2, 16, 12, 0, 0)
     end = datetime(2022, 2, 16, 13, 0, 0)
@@ -75,8 +75,8 @@ def test_get_photos_in_range(mock_post, immich_api, mock_immich_response):
     assert photos[0]['id'] == 'photo1'
 
 
-@patch('requests.Session.get')
-def test_get_photo_exif(mock_get, immich_api):
+@patch('immich_gpx.core.immich_client.ImmichAPI._make_request')
+def test_get_photo_exif(mock_request, immich_api):
     """Test fetching photo EXIF data."""
     mock_response = Mock()
     mock_response.json.return_value = {
@@ -87,7 +87,7 @@ def test_get_photo_exif(mock_get, immich_api):
         }
     }
     mock_response.raise_for_status.return_value = None
-    mock_get.return_value = mock_response
+    mock_request.return_value = mock_response
     
     exif = immich_api.get_photo_exif('photo123')
     
@@ -96,10 +96,10 @@ def test_get_photo_exif(mock_get, immich_api):
     assert exif['latitude'] == 41.0
 
 
-@patch('requests.Session.get')
-def test_get_photo_exif_error(mock_get, immich_api):
+@patch('immich_gpx.core.immich_client.ImmichAPI._make_request')
+def test_get_photo_exif_error(mock_request, immich_api):
     """Test EXIF fetch error handling."""
-    mock_get.side_effect = requests.exceptions.RequestException("Error")
+    mock_request.side_effect = requests.exceptions.RequestException("Error")
     
     exif = immich_api.get_photo_exif('photo123')
     
@@ -115,13 +115,13 @@ def test_init_with_logger():
     assert api.logger is logger
 
 
-@patch('requests.Session.post')
-def test_get_photos_empty_response(mock_post, immich_api):
+@patch('immich_gpx.core.immich_client.ImmichAPI._make_request')
+def test_get_photos_empty_response(mock_request, immich_api):
     """Test handling empty photo response."""
     mock_response = Mock()
     mock_response.json.return_value = {'assets': {'items': [], 'nextPage': False}}
     mock_response.raise_for_status.return_value = None
-    mock_post.return_value = mock_response
+    mock_request.return_value = mock_response
     
     start = datetime(2022, 2, 16, 12, 0, 0)
     end = datetime(2022, 2, 16, 13, 0, 0)
@@ -131,10 +131,10 @@ def test_get_photos_empty_response(mock_post, immich_api):
     assert len(photos) == 0
 
 
-@patch('requests.Session.post')
-def test_get_photos_network_error(mock_post, immich_api):
+@patch('immich_gpx.core.immich_client.ImmichAPI._make_request')
+def test_get_photos_network_error(mock_request, immich_api):
     """Test network error handling."""
-    mock_post.side_effect = requests.exceptions.Timeout("Timeout")
+    mock_request.side_effect = requests.exceptions.Timeout("Timeout")
     
     start = datetime(2022, 2, 16, 12, 0, 0)
     end = datetime(2022, 2, 16, 13, 0, 0)
