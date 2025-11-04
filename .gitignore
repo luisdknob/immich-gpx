@@ -24,6 +24,7 @@ htmlcov/
 .coverage
 logs/
 temp/
+dev/
 tmp/
 *.log
 config.yaml
