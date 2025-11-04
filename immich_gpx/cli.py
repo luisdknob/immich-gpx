@@ -106,8 +106,8 @@ Examples:
     )
     parser.add_argument(
         '--gpx-file',
-        required=True,
-        help='Path to the GPX file to parse',
+        required=False,
+        help='Path to the GPX file to parse (not required for --rollback)',
     )
     parser.add_argument(
         '--immich-url',
@@ -220,10 +220,31 @@ Examples:
             logger.error(f"Failed to connect to Immich: {e}")
             sys.exit(1)
         
+        # Display rollback preview
+        logger.info("=" * 80)
+        logger.info("RESTORING PHOTOS TO ORIGINAL GPS COORDINATES")
+        logger.info("=" * 80)
+        
+        for i, photo in enumerate(session_data['photos'], 1):
+            if photo['had_gps']:
+                original_gps = f"({photo['original_latitude']:.4f}, {photo['original_longitude']:.4f})"
+                current_gps = f"({photo['new_latitude']:.4f}, {photo['new_longitude']:.4f})"
+                action = f"{current_gps} → {original_gps}"
+            else:
+                current_gps = f"({photo['new_latitude']:.4f}, {photo['new_longitude']:.4f})"
+                action = f"{current_gps} → (cleared)"
+            
+            logger.info(f"{i:3}. {photo['filename']:40} {action}")
+        
+        logger.info("-" * 80)
+        
         # Restore coordinates for each photo
         success_count = 0
-        fail_count = 0
-        for photo in tqdm(session_data['photos'], desc="Restoring coordinates", unit="photo"):
+        skipped_count = 0
+        failed_count = 0
+        failed_photos = []
+        
+        for photo in tqdm(session_data['photos'], desc="Restoring photos", unit="photo", leave=True, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt}'):
             try:
                 if photo['had_gps']:
                     # Restore original coordinates
@@ -233,15 +254,27 @@ Examples:
                         photo['original_longitude']
                     )
                 else:
-                    # Remove GPS data that was added
-                    immich.update_photo_exif(photo['id'], None, None)
+                    # Photos that originally had no GPS: reset to 0,0 to clear GPS data
+                    # (Immich API uses 0,0 to clear/reset GPS coordinates)
+                    immich.update_photo_exif(photo['id'], 0, 0)
                 success_count += 1
             except Exception as e:
                 logger.warning(f"Failed to restore {photo['filename']}: {e}")
-                fail_count += 1
+                failed_photos.append(photo['filename'])
+                failed_count += 1
         
-        logger.info(f"Rollback complete: {success_count} restored, {fail_count} failed")
+        logger.info("-" * 80)
+        logger.info(f"Complete! ✓ {success_count} restored | → {skipped_count} skipped | ✗ {failed_count} failed")
+        if failed_photos:
+            logger.info("Failed photos:")
+            for photo_name in failed_photos:
+                logger.info(f"  - {photo_name}")
         sys.exit(0)
+    
+    # GPX file is required for normal update operations (not for rollback)
+    if not args.gpx_file:
+        logger.error("Error: --gpx-file is required for GPS updates (not needed for --rollback)")
+        sys.exit(1)
     
     # Extract config values (command-line args take precedence over config file)
     immich_url = args.immich_url or config.get('immich', {}).get('url')

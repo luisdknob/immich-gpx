@@ -21,7 +21,14 @@ performance:
   rate_limit_requests: 100  # Max requests per window
   rate_limit_window: 60  # Time window in seconds
 
+# Rollback configuration
+rollback:
+  enabled: true  # Enable GPS coordinate rollback feature
+  directory: ./rollback  # Directory to store rollback sessions
+  max_sessions: 10  # Keep last N rollback sessions
+
 # Logging configuration
 logging:
   verbose: false
   log_file: null  # Optional: set to file path for file logging
+

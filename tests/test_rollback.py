@@ -266,12 +266,6 @@ def test_rollback_file_json_format(temp_rollback_dir):
     assert isinstance(data["photos"], list)
     assert isinstance(data["total_updated"], int)
 
-
-# ============================================================================
-# PHASE 3: Integration Tests
-# ============================================================================
-
-
 def test_full_update_and_rollback_cycle(rollback_manager):
     """Test complete cycle: create session -> add photos -> save -> retrieve."""
     # Create session
@@ -432,11 +426,6 @@ def test_edge_case_session_with_gps_false(rollback_manager):
     assert photo_data["original_longitude"] is None
     assert photo_data["had_gps"] is False
     assert photo_data["new_latitude"] == -41.2
-
-
-# ============================================================================
-# PHASE 4: Enhancements (Progress Bar & Config)
-# ============================================================================
 
 
 def test_progress_iterator_with_tqdm(rollback_manager):
