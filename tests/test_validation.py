@@ -25,6 +25,7 @@ from immich_gpx.core.validation import (
     LONGITUDE_MIN,
     LONGITUDE_MAX,
 )
+from .builders import photo
 
 
 class TestLatitudeValidation:
@@ -367,29 +368,19 @@ class TestPhotoResponseValidation:
     
     def test_valid_photo_response_minimal(self):
         """Test valid photo with minimal required fields."""
-        photo = {
-            'id': 'photo-123',
-            'originalFileName': 'photo.jpg',
-            'exifInfo': {'dateTimeOriginal': '2024-01-15T12:00:00Z'}
-        }
-        validate_photo_response(photo)
+        test_photo = photo('photo-123', name='photo.jpg', timestamp='2024-01-15T12:00:00Z')
+        validate_photo_response(test_photo)
     
     def test_valid_photo_response_complete(self):
         """Test valid photo with complete fields."""
-        photo = {
-            'id': 'photo-123',
-            'originalFileName': 'photo.jpg',
-            'latitude': 40.7128,
-            'longitude': -74.0060,
-            'exifInfo': {'dateTimeOriginal': '2024-01-15T12:00:00Z'}
-        }
-        validate_photo_response(photo)
+        test_photo = photo('photo-123', 40.7128, -74.0060, name='photo.jpg', timestamp='2024-01-15T12:00:00Z')
+        validate_photo_response(test_photo)
     
     def test_invalid_photo_response_no_id(self):
         """Test invalid photo without id."""
-        photo = {'originalFileName': 'photo.jpg', 'exifInfo': {'dateTimeOriginal': '2024-01-15T12:00:00Z'}}
+        test_photo = {'originalFileName': 'photo.jpg', 'exifInfo': {'dateTimeOriginal': '2024-01-15T12:00:00Z'}}
         with pytest.raises(ValueError, match="missing required field"):
-            validate_photo_response(photo)
+            validate_photo_response(test_photo)
     
     def test_invalid_photo_response_not_dict(self):
         """Test invalid photo that is not dict."""

@@ -2,6 +2,7 @@
 import pytest
 from datetime import datetime, timezone
 from immich_gpx import GPSMatcher
+from .builders import photo, PhotoBuilder
 
 
 def test_haversine_distance():
@@ -32,24 +33,8 @@ def test_match_photos_to_points(gps_points):
     matcher = GPSMatcher(threshold=60)
     
     photos = [
-        {
-            'id': 'photo1',
-            'originalFileName': 'test1.jpg',
-            'exifInfo': {
-                'dateTimeOriginal': '2022-02-16T12:06:30+00:00',
-                'latitude': None,
-                'longitude': None
-            }
-        },
-        {
-            'id': 'photo2',
-            'originalFileName': 'test2.jpg',
-            'exifInfo': {
-                'dateTimeOriginal': '2022-02-16T12:07:30+00:00',
-                'latitude': None,
-                'longitude': None
-            }
-        }
+        photo('photo1', name='test1.jpg', timestamp='2022-02-16T12:06:30+00:00'),
+        photo('photo2', name='test2.jpg', timestamp='2022-02-16T12:07:30+00:00')
     ]
     
     matches = matcher.match_photos_to_points(gps_points, photos)
@@ -63,15 +48,7 @@ def test_no_matches_exceeds_threshold(gps_points):
     """Test when no matches due to time threshold."""
     matcher = GPSMatcher(threshold=1)  # Very strict - 1 second threshold
     
-    photos = [{
-        'id': 'photo1',
-        'originalFileName': 'test1.jpg',
-        'exifInfo': {
-            'dateTimeOriginal': '2022-02-16T12:10:00+00:00',  # Way too far from GPS points (last at 12:08:29)
-            'latitude': None,
-            'longitude': None
-        }
-    }]
+    photos = [photo('photo1', name='test1.jpg', timestamp='2022-02-16T12:10:00+00:00')]
     
     matches = matcher.match_photos_to_points(gps_points, photos)
     
@@ -82,15 +59,7 @@ def test_match_closest_point(gps_points):
     """Test matching to closest GPS point."""
     matcher = GPSMatcher(threshold=120)
     
-    photos = [{
-        'id': 'photo1',
-        'originalFileName': 'test1.jpg',
-        'exifInfo': {
-            'dateTimeOriginal': '2022-02-16T12:06:35+00:00',  # Between two points
-            'latitude': None,
-            'longitude': None
-        }
-    }]
+    photos = [photo('photo1', name='test1.jpg', timestamp='2022-02-16T12:06:35+00:00')]
     
     matches = matcher.match_photos_to_points(gps_points, photos)
     
@@ -104,15 +73,7 @@ def test_skip_photo_no_timestamp(gps_points):
     """Test skipping photos without timestamps."""
     matcher = GPSMatcher()
     
-    photos = [{
-        'id': 'photo1',
-        'originalFileName': 'test1.jpg',
-        'exifInfo': {
-            'dateTimeOriginal': None,  # No timestamp
-            'latitude': None,
-            'longitude': None
-        }
-    }]
+    photos = [PhotoBuilder().with_id('photo1').with_name('test1.jpg').with_time(None).build()]
     
     matches = matcher.match_photos_to_points(gps_points, photos)
     
@@ -132,15 +93,7 @@ def test_empty_gps_points():
     """Test matching with empty GPS points."""
     matcher = GPSMatcher()
     
-    photos = [{
-        'id': 'photo1',
-        'originalFileName': 'test1.jpg',
-        'exifInfo': {
-            'dateTimeOriginal': '2022-02-16T12:06:30+00:00',
-            'latitude': None,
-            'longitude': None
-        }
-    }]
+    photos = [photo('photo1', name='test1.jpg', timestamp='2022-02-16T12:06:30+00:00')]
     
     matches = matcher.match_photos_to_points([], photos)
     
@@ -189,15 +142,7 @@ def test_multiple_matches_same_photo(gps_points):
         }
     ]
     
-    photos = [{
-        'id': 'photo1',
-        'originalFileName': 'test1.jpg',
-        'exifInfo': {
-            'dateTimeOriginal': '2022-02-16T12:06:30+00:00',
-            'latitude': None,
-            'longitude': None
-        }
-    }]
+    photos = [photo('photo1', name='test1.jpg', timestamp='2022-02-16T12:06:30+00:00')]
     
     matches = matcher.match_photos_to_points(gps_points_test, photos)
     
@@ -213,33 +158,9 @@ def test_matches_sorted_oldest_first(gps_points):
     
     # Create photos with different timestamps (not in chronological order)
     photos = [
-        {
-            'id': 'photo3',
-            'originalFileName': 'test3.jpg',
-            'exifInfo': {
-                'dateTimeOriginal': '2022-02-16T12:09:00Z',  # Third
-                'latitude': 41.0,
-                'longitude': -71.0
-            }
-        },
-        {
-            'id': 'photo1',
-            'originalFileName': 'test1.jpg',
-            'exifInfo': {
-                'dateTimeOriginal': '2022-02-16T12:05:00Z',  # First (oldest)
-                'latitude': 41.0,
-                'longitude': -71.0
-            }
-        },
-        {
-            'id': 'photo2',
-            'originalFileName': 'test2.jpg',
-            'exifInfo': {
-                'dateTimeOriginal': '2022-02-16T12:07:00Z',  # Second
-                'latitude': 41.0,
-                'longitude': -71.0
-            }
-        }
+        photo('photo3', 41.0, -71.0, name='test3.jpg', timestamp='2022-02-16T12:09:00Z'),
+        photo('photo1', 41.0, -71.0, name='test1.jpg', timestamp='2022-02-16T12:05:00Z'),
+        photo('photo2', 41.0, -71.0, name='test2.jpg', timestamp='2022-02-16T12:07:00Z')
     ]
     
     matches = matcher.match_photos_to_points(gps_points, photos)
@@ -272,24 +193,8 @@ def test_match_numbering_follows_order():
     ]
     
     photos = [
-        {
-            'id': 'photo2',
-            'originalFileName': 'newer.jpg',
-            'exifInfo': {
-                'dateTimeOriginal': '2022-02-16T12:06:30Z',  # Newer
-                'latitude': 41.0,
-                'longitude': -71.0
-            }
-        },
-        {
-            'id': 'photo1',
-            'originalFileName': 'older.jpg',
-            'exifInfo': {
-                'dateTimeOriginal': '2022-02-16T12:06:00Z',  # Older
-                'latitude': 41.0,
-                'longitude': -71.0
-            }
-        }
+        photo('photo2', 41.0, -71.0, name='newer.jpg', timestamp='2022-02-16T12:06:30Z'),
+        photo('photo1', 41.0, -71.0, name='older.jpg', timestamp='2022-02-16T12:06:00Z')
     ]
     
     matches = matcher.match_photos_to_points(gps_points, photos)
@@ -312,17 +217,7 @@ def test_single_match_no_sort_error():
         }
     ]
     
-    photos = [
-        {
-            'id': 'photo1',
-            'originalFileName': 'test.jpg',
-            'exifInfo': {
-                'dateTimeOriginal': '2022-02-16T12:06:00Z',
-                'latitude': 41.0,
-                'longitude': -71.0
-            }
-        }
-    ]
+    photos = [photo('photo1', 41.0, -71.0, name='test.jpg', timestamp='2022-02-16T12:06:00Z')]
     
     matches = matcher.match_photos_to_points(gps_points, photos)
     

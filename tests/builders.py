@@ -24,15 +24,17 @@ from typing import Dict, Optional
 
 
 class PhotoBuilder:
-    """Builder for test photo data."""
+    """Builder for test photo data in Immich API format."""
     
     def __init__(self):
         self.data = {
             'id': 'photo1',
-            'name': 'IMG_001.jpg',
-            'latitude': None,
-            'longitude': None,
-            'time': '2022-02-16T12:06:30Z'
+            'originalFileName': 'IMG_001.jpg',
+            'exifInfo': {
+                'dateTimeOriginal': '2022-02-16T12:06:30Z',
+                'latitude': None,
+                'longitude': None
+            }
         }
     
     def with_id(self, photo_id: str):
@@ -42,28 +44,28 @@ class PhotoBuilder:
     
     def with_name(self, name: str):
         """Set photo filename."""
-        self.data['name'] = name
+        self.data['originalFileName'] = name
         return self
     
     def with_gps(self, lat: float, lon: float):
         """Set GPS coordinates."""
-        self.data['latitude'] = lat
-        self.data['longitude'] = lon
+        self.data['exifInfo']['latitude'] = lat
+        self.data['exifInfo']['longitude'] = lon
         return self
     
     def without_gps(self):
         """Remove GPS coordinates."""
-        self.data['latitude'] = None
-        self.data['longitude'] = None
+        self.data['exifInfo']['latitude'] = None
+        self.data['exifInfo']['longitude'] = None
         return self
     
     def with_time(self, time_str: str):
         """Set photo timestamp."""
-        self.data['time'] = time_str
+        self.data['exifInfo']['dateTimeOriginal'] = time_str
         return self
     
     def build(self) -> Dict:
-        """Build and return photo dict."""
+        """Build and return photo dict in Immich API format."""
         return self.data.copy()
 
 
@@ -129,13 +131,28 @@ class MatchBuilder:
         return self
     
     def build(self) -> Dict:
-        """Build and return match dict."""
+        """Build and return match dict with photo in match format."""
         photo_data = self._photo if self._photo else PhotoBuilder().build()
         gps_data = self._gps if self._gps else GPSPointBuilder().build()
         
+        # Transform photo from Immich API format to match format
+        # (mimics what GPSMatcher does in gps_matcher.py line 207)
+        match_photo = {
+            'id': photo_data.get('id'),
+            'name': photo_data.get('originalFileName'),
+            'time': photo_data.get('exifInfo', {}).get('dateTimeOriginal'),
+            'latitude': photo_data.get('exifInfo', {}).get('latitude'),
+            'longitude': photo_data.get('exifInfo', {}).get('longitude')
+        }
+        
+        # Transform GPS point time to ISO string if it's a datetime object
+        match_gps = gps_data.copy()
+        if hasattr(match_gps.get('time'), 'isoformat'):
+            match_gps['time'] = match_gps['time'].isoformat().replace('+00:00', 'Z')
+        
         return {
-            'photo': photo_data,
-            'gps_point': gps_data,
+            'photo': match_photo,
+            'gps_point': match_gps,
             'distance_meters': self._distance,
             'time_difference_seconds': self._time_diff
         }
@@ -143,26 +160,31 @@ class MatchBuilder:
 
 # Convenience functions for quick test data creation
 
-def photo(photo_id: str = 'photo1', lat: Optional[float] = None, lon: Optional[float] = None, name: str = 'IMG_001.jpg') -> Dict:
+def photo(photo_id: str = 'photo1', lat: Optional[float] = None, lon: Optional[float] = None, 
+          name: str = 'IMG_001.jpg', timestamp: Optional[str] = '2022-02-16T12:06:30Z') -> Dict:
     """
-    Quick photo builder.
+    Quick photo builder for Immich API format.
     
     Args:
         photo_id: Photo ID
         lat: Latitude (None for no GPS)
         lon: Longitude (None for no GPS)
         name: Filename
+        timestamp: ISO format timestamp (default: '2022-02-16T12:06:30Z', None to omit)
     
     Returns:
-        Photo dict
+        Photo dict in Immich API format
     
     Examples:
-        >>> photo('p1')  # No GPS
+        >>> photo('p1')  # No GPS, default timestamp
         >>> photo('p2', 41.0, -71.0)  # With GPS
+        >>> photo('p3', timestamp='2022-02-16T12:00:00Z')
     """
     builder = PhotoBuilder().with_id(photo_id).with_name(name)
     if lat is not None and lon is not None:
         builder.with_gps(lat, lon)
+    if timestamp is not None:
+        builder.with_time(timestamp)
     return builder.build()
 
 

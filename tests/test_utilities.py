@@ -31,14 +31,7 @@ def test_print_results_with_matches(logger):
         }
     ]
     
-    matches = [
-        {
-            'photo': photo('photo1', 41.0, -71.0, 'test.jpg'),
-            'gps_point': gps_point(41.0, -71.0),
-            'distance_meters': 10.5,
-            'time_difference_seconds': 1
-        }
-    ]
+    matches = [match(photo('photo1', 41.0, -71.0, 'test.jpg'), gps_point(41.0, -71.0))]
     
     # Test with no immich_url to avoid asking for updates
     with patch('builtins.input', return_value='no'):
@@ -72,14 +65,9 @@ def test_print_results_with_null_gps_data(logger):
         }
     ]
     
-    matches = [
-        {
-            'photo': photo('photo1', name='test.jpg'),
-            'gps_point': gps_point(41.0, -71.0),
-            'distance_meters': None,
-            'time_difference_seconds': 1
-        }
-    ]
+    test_match = match(photo('photo1', name='test.jpg'), gps_point(41.0, -71.0))
+    test_match['distance_meters'] = None  # Override distance
+    matches = [test_match]
     
     result = print_results(gps_points, photos, matches, immich_url="", logger=logger)
 
@@ -100,14 +88,9 @@ def test_print_match_without_distance(logger):
         }
     ]
     
-    matches = [
-        {
-            'photo': photo('photo1', name='test.jpg'),
-            'gps_point': gps_point(41.0, -71.0),
-            'distance_meters': None,
-            'time_difference_seconds': 1
-        }
-    ]
+    test_match = match(photo('photo1', name='test.jpg'), gps_point(41.0, -71.0))
+    test_match['distance_meters'] = None  # Override distance
+    matches = [test_match]
     
     # Create a mock logger to capture calls
     mock_logger = MagicMock(spec=logging.Logger)
@@ -144,14 +127,9 @@ def test_print_match_with_valid_distance(logger):
         }
     ]
     
-    matches = [
-        {
-            'photo': photo('photo1', 41.0, -71.0, 'test.jpg'),
-            'gps_point': gps_point(41.0, -71.0),
-            'distance_meters': 45.3,
-            'time_difference_seconds': 1
-        }
-    ]
+    test_match = match(photo('photo1', 41.0, -71.0, 'test.jpg'), gps_point(41.0, -71.0))
+    test_match['distance_meters'] = 45.3  # Override distance
+    matches = [test_match]
     
     # Create a mock logger to capture calls
     mock_logger = MagicMock(spec=logging.Logger)
@@ -188,14 +166,9 @@ def test_print_match_with_zero_distance(logger):
         }
     ]
     
-    matches = [
-        {
-            'photo': photo('photo1', 41.0, -71.0, 'test.jpg'),
-            'gps_point': gps_point(41.0, -71.0),
-            'distance_meters': 0,
-            'time_difference_seconds': 1
-        }
-    ]
+    test_match = match(photo('photo1', 41.0, -71.0, 'test.jpg'), gps_point(41.0, -71.0))
+    test_match['distance_meters'] = 0  # Override distance to 0
+    matches = [test_match]
     
     # Create a mock logger to capture calls
     mock_logger = MagicMock(spec=logging.Logger)
