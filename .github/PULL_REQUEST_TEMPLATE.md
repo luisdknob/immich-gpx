@@ -5,10 +5,10 @@ Brief description of changes
 Closes #[task number or reference]
 
 ## Type of Change
-- [ ] Bug fix (Task 1 or Task 2)
-- [ ] Enhancement (Task 3)
-- [ ] New feature (Task 4 or Task 5)
-- [ ] Documentation (Task 6)
+- [ ] Bug fix
+- [ ] Enhancement
+- [ ] New feature
+- [ ] Documentation
 
 ## Testing
 - [ ] Unit tests added/updated
