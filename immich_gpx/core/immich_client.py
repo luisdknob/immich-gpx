@@ -98,10 +98,6 @@ class ImmichAPI:
         self.session.headers.update({'x-api-key': api_key})
         self.session.verify = verify_ssl
         
-        # Disable automatic redirects to prevent protocol changes (HTTP->HTTPS)
-        # We'll handle redirects manually to preserve the original protocol
-        self.session.allow_redirects = False
-        
         # Initialize production features
         self.response_cache = APIResponseCache(ttl_seconds=3600)  # Cache responses for 1 hour
         self.rate_limiter = RateLimiter(max_requests=100, window_seconds=60)  # 100 req/min
@@ -129,10 +125,11 @@ class ImmichAPI:
         **kwargs
     ) -> requests.Response:
         """
-        Make HTTP request while preserving original protocol in redirects.
+        Make HTTP request with proper redirect handling.
         
-        Handles 3xx redirects but keeps the original protocol (HTTP/HTTPS).
-        This prevents servers from forcing protocol upgrades via redirects.
+        Detects and handles redirects by updating the base URL if a redirect
+        is detected. This ensures that subsequent requests use the correct
+        protocol (e.g., if server redirects HTTP -> HTTPS).
         
         Args:
             method: HTTP method (GET, POST, PUT, etc.)
@@ -145,45 +142,25 @@ class ImmichAPI:
         Raises:
             requests.exceptions.RequestException: If request fails
         """
-        # Extract the protocol and base URL
-        from urllib.parse import urlparse, urlunparse
+        # Make request with allow_redirects=True to follow redirects
+        response = self.session.request(method, url, allow_redirects=True, **kwargs)
         
-        parsed_url = urlparse(url)
-        protocol = parsed_url.scheme
-        
-        # Make request (allow_redirects=False to prevent protocol changes)
-        response = self.session.request(method, url, allow_redirects=False, **kwargs)
-        
-        # Handle 3xx redirects manually while preserving protocol
-        max_redirects = 5
-        redirect_count = 0
-        
-        while 300 <= response.status_code < 400 and redirect_count < max_redirects:
-            redirect_location = response.headers.get('Location')
-            if not redirect_location:
-                break
+        # Check if a redirect occurred by examining response.history
+        # response.history contains the list of Response objects from the history of the request
+        if response.history:
+            # A redirect occurred - the final URL might have a different protocol
+            # Extract the new base URL from the final URL
+            final_url = response.url
             
-            redirect_count += 1
-            self._log(f"Following redirect ({redirect_count}): {redirect_location}")
+            # Parse the URL to get base (scheme + netloc)
+            from urllib.parse import urlparse, urlunparse
+            parsed = urlparse(final_url)
+            new_base_url = urlunparse((parsed.scheme, parsed.netloc, '', '', '', ''))
             
-            # Parse redirect URL
-            redirect_parsed = urlparse(redirect_location)
-            
-            # Preserve original protocol if redirect location uses different protocol
-            if redirect_parsed.scheme != protocol:
-                self._log(f"Redirect attempts to change protocol from {protocol}:// to {redirect_parsed.scheme}://, preserving {protocol}://")
-                # Reconstruct URL with original protocol
-                redirect_location = urlunparse((
-                    protocol,  # Preserve original protocol
-                    redirect_parsed.netloc,
-                    redirect_parsed.path,
-                    redirect_parsed.params,
-                    redirect_parsed.query,
-                    redirect_parsed.fragment
-                ))
-            
-            # Make the redirect request
-            response = self.session.request(method, redirect_location, allow_redirects=False, **kwargs)
+            # If the protocol or host changed, update self.url
+            if new_base_url != self.url.rstrip('/'):
+                self.logger.debug(f"Redirect detected: {self.url} -> {new_base_url}")
+                self.url = new_base_url
         
         return response
 

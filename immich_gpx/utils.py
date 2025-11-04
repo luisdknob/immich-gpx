@@ -139,7 +139,8 @@ def print_results(
             logger.info(f"  OpenStreetMap: {osm_link}")
             logger.info(f"  GPS point location: ({gps['latitude']:.6f}, {gps['longitude']:.6f})")
             logger.info(f"  GPS point time: {gps['time']}")
-            logger.info(f"  Distance: {distance} meters")
+            if distance is not None:
+                logger.info(f"  Distance: {distance} meters")
             if time_diff:
                 logger.info(f"  Time difference: {time_diff} seconds")
         logger.info("-" * 80)
