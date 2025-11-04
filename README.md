@@ -8,11 +8,14 @@ Link GPS coordinates from GPX tracks to photos in Immich based on timestamp prox
 - Query Immich for photos within the GPS track time range
 - Match photos to GPS points by time proximity (closest point wins)
 - Update photo GPS coordinates in Immich
+- **Rollback system**: Undo GPS updates with `--rollback latest`
+- **XMP sidecar support**: Handle external/read-only libraries with `--enable-xmp`
+- **Update verification**: Detects when coordinates don't persist (read-only libraries)
 - Interactive preview before applying updates
+- HTTP redirect handling (auto-upgrades HTTP → HTTPS)
 - Support for HTTPS with SSL verification options
 - YAML configuration support
 - Performance metrics and logging
-- 89%+ test coverage with 280 passing tests
 
 ## Prerequisites
 
@@ -71,7 +74,7 @@ The tool auto-searches for `config.yaml` in the current directory.
 
 | Argument | Description | Default |
 |----------|-------------|---------|
-| `--gpx-file` | Path to GPX file (required) | - |
+| `--gpx-file` | Path to GPX file (required for GPS updates) | - |
 | `--immich-url` | Immich server URL | config file |
 | `--immich-api-key` | Immich API key | config file |
 | `--threshold` | Time threshold in seconds | 60 |
@@ -80,6 +83,8 @@ The tool auto-searches for `config.yaml` in the current directory.
 | `--verbose` | Enable debug output | false |
 | `--config` | Path to YAML config file | auto-search |
 | `--update-mode` | `all`, `without-gps`, or `prompt` | prompt |
+| `--rollback` | Restore GPS from session: `latest` or SESSION_ID | - |
+| `--enable-xmp` | Create XMP sidecars for external libraries | false |
 | `--version` | Show version | - |
 
 ## How It Works
@@ -87,8 +92,33 @@ The tool auto-searches for `config.yaml` in the current directory.
 1. **Parse GPX**: Extract GPS points and timestamps from GPX file
 2. **Query Immich**: Fetch photos taken within the GPX time range
 3. **Match**: For each photo, find the GPS point closest in time
-4. **Preview**: Show matches and ask for confirmation
-5. **Update**: Apply GPS coordinates to matched photos in Immich
+4. **Verify**: Re-fetch photos to confirm coordinates persisted
+5. **Preview**: Show matches and ask for confirmation
+6. **Update**: Apply GPS coordinates to matched photos in Immich
+
+### Rollback
+
+Undo GPS coordinate changes:
+
+```bash
+# Restore most recent session
+python -m immich_gpx.cli --rollback latest
+
+# Restore specific session
+python -m immich_gpx.cli --rollback abc123-def456
+```
+
+Sessions are stored in `./rollback/` and auto-cleaned (keeps 10 most recent).
+
+### External Libraries / Read-Only Storage
+
+For photos in external or read-only libraries where Immich can't write EXIF:
+
+```bash
+python -m immich_gpx.cli --gpx-file track.gpx --enable-xmp
+```
+
+This creates XMP sidecar files that Immich can import via metadata rescan.
 
 ## Configuration Priority
 
