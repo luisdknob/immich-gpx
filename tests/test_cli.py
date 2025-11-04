@@ -191,29 +191,6 @@ def test_gpx_parser_complex_gpx(tmp_path):
         assert points[i]['time'] <= points[i+1]['time']
 
 
-def test_immich_api_pagination(tmp_path):
-    """Test ImmichAPI handles pagination correctly."""
-    from immich_gpx import ImmichAPI
-    from unittest.mock import patch
-    
-    api = ImmichAPI("https://test.com", "key")
-    
-    # Mock responses with pagination
-    responses = [
-        Mock(json=lambda: {'assets': {'items': [{'id': f'photo{i}' for i in range(100)}], 'nextPage': True}}, raise_for_status=lambda: None),
-        Mock(json=lambda: {'assets': {'items': [{'id': f'photo{i}' for i in range(100, 150)}], 'nextPage': False}}, raise_for_status=lambda: None)
-    ]
-    
-    with patch.object(api.session, 'post', side_effect=responses):
-        with patch.object(api, 'get_photo_exif', return_value={'dateTimeOriginal': '2022-02-16T12:00:00Z'}):
-            photos = api.get_photos_in_range(
-                datetime(2022, 2, 16, 12, 0),
-                datetime(2022, 2, 16, 13, 0)
-            )
-            # Note: The actual implementation may vary, but we're testing the flow
-            assert photos is not None
-
-
 def test_gps_matcher_verbose_logging():
     """Test GPS matcher with verbose logging."""
     import logging

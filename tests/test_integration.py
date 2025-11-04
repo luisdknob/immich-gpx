@@ -18,17 +18,21 @@ def test_full_workflow(tmp_gpx_file, mock_immich_response):
         assert 'longitude' in point
         assert 'time' in point
     
-    # Mock Immich API
-    with patch('requests.Session.post') as mock_post, \
-         patch('requests.Session.get') as mock_get:
+    # Mock Immich API by patching session.request (the actual method used)
+    with patch('requests.Session.request') as mock_request:
         
-        # Mock connection test
-        mock_get.return_value = Mock(json=lambda: {'version': '2.1.0'})
-        mock_get.return_value.raise_for_status = Mock()
+        # Mock connection test (version endpoint)
+        version_response = Mock(json=lambda: {'version': '2.1.0'})
+        version_response.raise_for_status = Mock()
+        version_response.history = []
         
-        # Mock photo query - wrap response in assets structure
-        mock_post.return_value = Mock(json=lambda: {'assets': {'items': mock_immich_response, 'nextPage': False}})
-        mock_post.return_value.raise_for_status = Mock()
+        # Mock photo query response
+        photos_response = Mock(json=lambda: {'assets': {'items': mock_immich_response, 'nextPage': False}})
+        photos_response.raise_for_status = Mock()
+        photos_response.history = []
+        
+        # First call is version check, second is search query
+        mock_request.side_effect = [version_response, photos_response]
         
         api = ImmichAPI("https://test.com", "key")
         assert api.test_connection()
@@ -54,9 +58,12 @@ def test_workflow_with_logging(tmp_gpx_file, mock_immich_response):
     parser = GPXParser(str(tmp_gpx_file), logger=logger)
     gps_points = parser.parse()
     
-    with patch('requests.Session.get') as mock_get:
-        mock_get.return_value = Mock(json=lambda: {'version': '2.1.0'})
-        mock_get.return_value.raise_for_status = Mock()
+    with patch('requests.Session.request') as mock_request:
+        version_response = Mock(json=lambda: {'version': '2.1.0'})
+        version_response.raise_for_status = Mock()
+        version_response.history = []
+        
+        mock_request.return_value = version_response
         
         api = ImmichAPI("https://test.com", "key", logger=logger)
         assert api.test_connection()
@@ -74,9 +81,12 @@ def test_workflow_empty_gps_file(tmp_path, empty_gpx_content, mock_immich_respon
     gps_points = parser.parse()
     assert len(gps_points) == 0
     
-    with patch('requests.Session.post') as mock_post:
-        mock_post.return_value = Mock(json=lambda: {'assets': {'items': mock_immich_response, 'nextPage': False}})
-        mock_post.return_value.raise_for_status = Mock()
+    with patch('requests.Session.request') as mock_request:
+        photos_response = Mock(json=lambda: {'assets': {'items': mock_immich_response, 'nextPage': False}})
+        photos_response.raise_for_status = Mock()
+        photos_response.history = []
+        
+        mock_request.return_value = photos_response
         
         api = ImmichAPI("https://test.com", "key")
         with patch.object(api, 'get_photo_exif', return_value={'dateTimeOriginal': '2022-02-16T12:06:30Z'}):
@@ -97,9 +107,12 @@ def test_workflow_no_photos(tmp_gpx_file):
     gps_points = parser.parse()
     assert len(gps_points) == 3
     
-    with patch('requests.Session.post') as mock_post:
-        mock_post.return_value = Mock(json=lambda: {'assets': {'items': [], 'nextPage': False}})
-        mock_post.return_value.raise_for_status = Mock()
+    with patch('requests.Session.request') as mock_request:
+        photos_response = Mock(json=lambda: {'assets': {'items': [], 'nextPage': False}})
+        photos_response.raise_for_status = Mock()
+        photos_response.history = []
+        
+        mock_request.return_value = photos_response
         
         api = ImmichAPI("https://test.com", "key")
         photos = api.get_photos_in_range(
@@ -124,9 +137,12 @@ def test_workflow_time_range_extraction(tmp_gpx_file, mock_immich_response):
     assert end_time is not None
     assert start_time < end_time
     
-    with patch('requests.Session.post') as mock_post:
-        mock_post.return_value = Mock(json=lambda: {'assets': {'items': mock_immich_response, 'nextPage': False}})
-        mock_post.return_value.raise_for_status = Mock()
+    with patch('requests.Session.request') as mock_request:
+        photos_response = Mock(json=lambda: {'assets': {'items': mock_immich_response, 'nextPage': False}})
+        photos_response.raise_for_status = Mock()
+        photos_response.history = []
+        
+        mock_request.return_value = photos_response
         
         api = ImmichAPI("https://test.com", "key")
         with patch.object(api, 'get_photo_exif', return_value={'dateTimeOriginal': '2022-02-16T12:06:30Z'}):

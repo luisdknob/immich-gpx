@@ -18,8 +18,8 @@ class TestCLIArgumentParsing:
         with patch('sys.argv', ['immich_gpx']):
             with pytest.raises(SystemExit) as exc_info:
                 main()
-            # argparse exits with code 2 when arguments are missing
-            assert exc_info.value.code == 2
+            # Our code exits with code 1 (validation error), not argparse code 2
+            assert exc_info.value.code == 1
 
     def test_main_with_all_arguments(self, tmp_path):
         """Test CLI with all arguments provided."""
